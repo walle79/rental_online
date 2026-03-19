@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { 
-  Droplet, Zap, Receipt, History, 
+import {
+  Droplet, Zap, Receipt, History,
   ChevronRight, Camera, CheckCircle2, AlertCircle, Trash2,
   ChevronDown, Search, X, Edit3, Save, Building2, Calendar,
   User, DollarSign, ArrowLeft, Filter
@@ -38,7 +38,7 @@ const EditableRow = ({ label, value, unit, onSave }) => {
             onClick={handleSave}
             style={{ background: '#22c55e', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           </button>
         </>
       ) : (
@@ -48,7 +48,7 @@ const EditableRow = ({ label, value, unit, onSave }) => {
             onClick={() => { setDraft(value); setEditing(true); }}
             style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
           </button>
         </>
       )}
@@ -57,9 +57,9 @@ const EditableRow = ({ label, value, unit, onSave }) => {
 };
 
 // Inner modal content — only mounted when bill is non-null
-const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave }) => {
-  const ELECTRICITY_PRICE = 3500;
-  const WATER_PRICE = 15000;
+const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) => {
+  const elecPrice = bill.electricity?.price ?? prices?.electricity ?? 3500;
+  const waterPrice = bill.water?.price ?? prices?.water ?? 15000;
 
   // Local state for live edits (initializes from a guaranteed non-null bill)
   const [localBill, setLocalBill] = useState(bill);
@@ -77,13 +77,13 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave }) => {
   };
 
   const handleElecChange = (newKwh) => {
-    const newCost = newKwh * ELECTRICITY_PRICE;
-    updateAndSave({ ...localBill, electricity: { current: newKwh, cost: newCost }, total: rentCost + newCost + (localBill.water?.cost || 0) });
+    const newCost = newKwh * elecPrice;
+    updateAndSave({ ...localBill, electricity: { current: newKwh, price: elecPrice, cost: newCost }, total: rentCost + newCost + (localBill.water?.cost || 0) });
   };
 
   const handleWaterChange = (newM3) => {
-    const newCost = newM3 * WATER_PRICE;
-    updateAndSave({ ...localBill, water: { current: newM3, cost: newCost }, total: rentCost + (localBill.electricity?.cost || 0) + newCost });
+    const newCost = newM3 * waterPrice;
+    updateAndSave({ ...localBill, water: { current: newM3, price: waterPrice, cost: newCost }, total: rentCost + (localBill.electricity?.cost || 0) + newCost });
   };
 
   const handleToggleStatus = () => {
@@ -145,11 +145,11 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave }) => {
 
         <div style={{ padding: '8px 0 0 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-            <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí điện ({localBill.electricity?.current ?? 0} × 3.500đ)</span>
+            <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí điện ({localBill.electricity?.current ?? 0} × {elecPrice.toLocaleString()}đ)</span>
             <span style={{ fontSize: '12px', color: '#64748b' }}>{(localBill.electricity?.cost || 0).toLocaleString()}đ</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-            <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí nước ({localBill.water?.current ?? 0} × 15.000đ)</span>
+            <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí nước ({localBill.water?.current ?? 0} × {waterPrice.toLocaleString()}đ)</span>
             <span style={{ fontSize: '12px', color: '#64748b' }}>{(localBill.water?.cost || 0).toLocaleString()}đ</span>
           </div>
         </div>
@@ -204,7 +204,7 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave }) => {
 };
 
 // Outer wrapper: guard that only mounts InvoiceModalContent when bill is non-null
-const InvoiceDetailModal = ({ bill, onClose, onUpdateStatus, onSave }) => {
+const InvoiceDetailModal = ({ bill, onClose, onUpdateStatus, onSave, prices }) => {
   if (!bill) return null;
   return ReactDOM.createPortal(
     <div
@@ -217,7 +217,7 @@ const InvoiceDetailModal = ({ bill, onClose, onUpdateStatus, onSave }) => {
       }}
       onClick={onClose}
     >
-      <InvoiceModalContent bill={bill} onClose={onClose} onUpdateStatus={onUpdateStatus} onSave={onSave} />
+      <InvoiceModalContent bill={bill} onClose={onClose} onUpdateStatus={onUpdateStatus} onSave={onSave} prices={prices} />
     </div>,
     document.body
   );
@@ -233,9 +233,12 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  const ELECTRICITY_PRICE = 3500;
-  const WATER_PRICE = 15000;
-  const ROOM_PRICE = 3000000;
+  // Cấu hình đơn giá mặc định (khi cần thay đổi giá, bạn update trực tiếp ở đây)
+  const CONFIG_PRICES = {
+    electricity: 5000,
+    water: 15000,
+    room: 3000000
+  };
 
   const [searchRoom, setSearchRoom] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -252,10 +255,10 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
       }
       rooms[t.room].occupants.push(t.name);
     });
-    return Object.values(rooms).sort((a, b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
+    return Object.values(rooms).sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true }));
   }, [tenants]);
 
-  const filteredRooms = roomsData.filter(r => 
+  const filteredRooms = roomsData.filter(r =>
     r.room.toLowerCase().includes(searchRoom.toLowerCase()) ||
     r.occupants.some(name => name.toLowerCase().includes(searchRoom.toLowerCase()))
   );
@@ -264,15 +267,12 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
     e.preventDefault();
     if (!selectedTenant) return;
 
-    const prevElec = 100; 
-    const prevWater = 10; 
+    const elecUsage = Number(currentReadings.electricity);
+    const waterUsage = Number(currentReadings.water);
 
-    const elecUsage = Math.max(0, currentReadings.electricity - prevElec);
-    const waterUsage = Math.max(0, currentReadings.water - prevWater);
-    
-    const elecCost = elecUsage * ELECTRICITY_PRICE;
-    const waterCost = waterUsage * WATER_PRICE;
-    const total = ROOM_PRICE + elecCost + waterCost;
+    const elecCost = elecUsage * CONFIG_PRICES.electricity;
+    const waterCost = waterUsage * CONFIG_PRICES.water;
+    const total = CONFIG_PRICES.room + elecCost + waterCost;
 
     const newBill = {
       id: Date.now(),
@@ -281,8 +281,8 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
       room: selectedTenant.room,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      electricity: { current: Number(currentReadings.electricity), cost: elecCost },
-      water: { current: Number(currentReadings.water), cost: waterCost },
+      electricity: { current: elecUsage, price: CONFIG_PRICES.electricity, cost: elecCost },
+      water: { current: waterUsage, price: CONFIG_PRICES.water, cost: waterCost },
       total: total,
       status: 'pending',
       date: currentReadings.date
@@ -313,7 +313,7 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
 
   const filteredBills = useMemo(() => {
     return bills.filter(b => {
-      const monthMatch = !filterMonth || `${b.year}-${String(b.month).padStart(2,'0')}` === filterMonth;
+      const monthMatch = !filterMonth || `${b.year}-${String(b.month).padStart(2, '0')}` === filterMonth;
       const statusMatch = filterStatus === 'all' || b.status === filterStatus;
       return monthMatch && statusMatch;
     });
@@ -330,16 +330,16 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {/* Create invoice section */}
           <section>
-            <h2 className="form-label" style={{ marginBottom: '12px' }}>Cấu hình hóa đơn</h2>
-            
+            <h2 className="form-label" style={{ marginBottom: '12px' }}>Tạo hóa đơn mới</h2>
+
             <div style={{ position: 'relative' }}>
-              <button 
+              <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="glass-card"
-                style={{ 
-                  width: '100%', 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '20px',
                   marginBottom: '0',
@@ -359,12 +359,12 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
               </button>
 
               {isDropdownOpen && (
-                <div className="dropdown-menu" style={{ 
+                <div className="dropdown-menu" style={{
                   position: 'absolute', top: 'calc(100% + 10px)', left: 0, right: 0, zIndex: 100, padding: '16px'
                 }}>
                   <div className="search-wrapper" style={{ marginBottom: '16px' }}>
                     <Search className="icon" size={16} />
-                    <input 
+                    <input
                       type="text"
                       placeholder="Tìm số phòng hoặc tên khách..."
                       value={searchRoom}
@@ -372,10 +372,10 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
                       autoFocus
                     />
                   </div>
-                  
+
                   <div className="custom-scrollbar" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                     {filteredRooms.map(roomInfo => (
-                      <button 
+                      <button
                         key={roomInfo.room}
                         onClick={() => { setSelectedTenant(roomInfo.primaryTenant); setIsDropdownOpen(false); }}
                         className="dropdown-item"
@@ -428,7 +428,7 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
                     maxWidth: '100px'
                   }}
                 >
-                  <option value="">Tất cả</option>
+                  <option value="">Tháng</option>
                   {availableMonths.map(ym => {
                     const [y, m] = ym.split('-');
                     return <option key={ym} value={ym}>Th{parseInt(m)}/{y}</option>;
@@ -450,7 +450,7 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
                     maxWidth: '90px'
                   }}
                 >
-                  <option value="all">Tất cả</option>
+                  <option value="all">Status</option>
                   <option value="paid">Đã thu</option>
                   <option value="pending">Chưa thu</option>
                 </select>
@@ -461,11 +461,11 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
               {filteredBills.map(bill => {
                 const isPaid = bill.status === 'paid';
                 return (
-                  <button 
+                  <button
                     key={bill.id}
                     onClick={() => setViewingBill(bill)}
                     className="glass-card"
-                    style={{ 
+                    style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       marginBottom: '0', padding: '16px 20px',
                       width: '100%', textAlign: 'left',
@@ -474,8 +474,8 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ 
-                        width: '42px', height: '42px', borderRadius: '50%', 
+                      <div style={{
+                        width: '42px', height: '42px', borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         minWidth: '42px',
                         background: isPaid ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
@@ -494,10 +494,10 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
                       <p style={{ fontWeight: 900, fontSize: '14px', margin: '0 0 5px 0', color: isPaid ? 'white' : 'white' }}>
                         {bill.total.toLocaleString()}đ
                       </p>
-                      <span style={{ 
+                      <span style={{
                         fontSize: '9px', fontWeight: 900,
-                        padding: '3px 9px', borderRadius: '6px', 
-                        background: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)', 
+                        padding: '3px 9px', borderRadius: '6px',
+                        background: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
                         color: isPaid ? '#22c55e' : '#f59e0b',
                         textTransform: 'uppercase', letterSpacing: '0.1em'
                       }}>
@@ -517,7 +517,7 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
         </div>
       ) : (
         <div className="animate-slide-up">
-          <button 
+          <button
             onClick={() => setSelectedTenant(null)}
             className="text-primary text-xs font-bold mb-6 flex items-center gap-1 uppercase tracking-widest"
           >
@@ -532,26 +532,26 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-muted flex items-center gap-1 uppercase">
-                    <Zap size={10} className="text-amber-400" /> Chỉ số Điện (kWh)
+                    <Zap size={10} className="text-amber-400" /> Số điện tiêu thụ (kWh)
                   </label>
-                  <input 
+                  <input
                     type="number" required
                     className="w-full bg-white-10 border-white-10 rounded-xl p-4 text-white focus:border-primary outline-none"
-                    placeholder="VD: 1450"
+                    placeholder="VD: 30"
                     value={currentReadings.electricity}
-                    onChange={e => setCurrentReadings({...currentReadings, electricity: e.target.value})}
+                    onChange={e => setCurrentReadings({ ...currentReadings, electricity: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-muted flex items-center gap-1 uppercase">
-                    <Droplet size={10} className="text-blue-400" /> Chỉ số Nước (m³)
+                    <Droplet size={10} className="text-blue-400" /> Số nước tiêu thụ (m³)
                   </label>
-                  <input 
+                  <input
                     type="number" required
                     className="w-full bg-white-10 border-white-10 rounded-xl p-4 text-white focus:border-primary outline-none"
-                    placeholder="VD: 210"
+                    placeholder="VD: 2"
                     value={currentReadings.water}
-                    onChange={e => setCurrentReadings({...currentReadings, water: e.target.value})}
+                    onChange={e => setCurrentReadings({ ...currentReadings, water: e.target.value })}
                   />
                 </div>
               </div>
@@ -581,6 +581,7 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
         onClose={() => setViewingBill(null)}
         onUpdateStatus={handleUpdateStatus}
         onSave={handleSaveBill}
+        prices={CONFIG_PRICES}
       />
     </div>
   );
