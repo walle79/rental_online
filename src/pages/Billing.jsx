@@ -226,7 +226,7 @@ const InvoiceDetailModal = ({ bill, onClose, onUpdateStatus, onSave, prices }) =
 };
 
 // ─── Main Billing Component ──────────────────────────────────────────────────────
-const Billing = ({ tenants = [], bills = [], setBills }) => {
+const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [viewingBill, setViewingBill] = useState(null);
   const [currentReadings, setCurrentReadings] = useState({
@@ -243,6 +243,28 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
   const [loadingPrices, setLoadingPrices] = useState(true);
   const [showPriceSettings, setShowPriceSettings] = useState(false);
   const [isSavingPrices, setIsSavingPrices] = useState(false);
+  const [draftPrices, setDraftPrices] = useState({ electricity: '', water: '', room: '' });
+
+  useEffect(() => {
+    if (showPriceSettings) {
+      setDraftPrices({
+        electricity: configPrices.electricity?.toString() || '',
+        water: configPrices.water?.toString() || '',
+        room: configPrices.room?.toString() || ''
+      });
+    }
+  }, [showPriceSettings, configPrices]);
+
+  const handleDraftChange = (field, value) => {
+    const numStr = value.replace(/\D/g, '');
+    const cleaned = numStr ? parseInt(numStr, 10).toString() : '';
+    setDraftPrices(prev => ({ ...prev, [field]: cleaned }));
+  };
+
+  const formatPriceDisplay = (valStr) => {
+    if (!valStr) return '';
+    return Number(valStr).toLocaleString('de-DE');
+  };
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -264,7 +286,13 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
   const handleSavePricesToDB = async () => {
     setIsSavingPrices(true);
     try {
-      await setDoc(doc(db, 'config', 'prices'), configPrices);
+      const newConfig = {
+        electricity: Number(draftPrices.electricity) || 0,
+        water: Number(draftPrices.water) || 0,
+        room: Number(draftPrices.room) || 0
+      };
+      await setDoc(doc(db, 'config', 'prices'), newConfig);
+      setConfigPrices(newConfig);
       alert('Đã lưu cấu hình giá mới vào Database thành công!');
       setShowPriceSettings(false);
     } catch (error) {
@@ -323,20 +351,20 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
       date: currentReadings.date
     };
 
-    setBills([newBill, ...bills]);
+    onAddBill(newBill);
     setSelectedTenant(null);
     setCurrentReadings({ electricity: '', water: '', date: new Date().toISOString().split('T')[0] });
   };
 
   const handleUpdateStatus = (billId, newStatus) => {
-    setBills(prev => prev.map(b => b.id === billId ? { ...b, status: newStatus } : b));
+    onUpdateBill(billId, { status: newStatus });
     if (viewingBill?.id === billId) {
       setViewingBill(prev => ({ ...prev, status: newStatus }));
     }
   };
 
   const handleSaveBill = (updatedBill) => {
-    setBills(prev => prev.map(b => b.id === updatedBill.id ? updatedBill : b));
+    onUpdateBill(updatedBill.id, updatedBill);
     setViewingBill(null);
   };
 
@@ -382,24 +410,27 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
                   <div>
                     <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Điện (đ/kWh)</label>
                     <input 
-                      type="number" value={configPrices.electricity} 
-                      onChange={e => setConfigPrices({...configPrices, electricity: Number(e.target.value)})}
+                      type="text" value={formatPriceDisplay(draftPrices.electricity)} 
+                      onChange={e => handleDraftChange('electricity', e.target.value)}
+                      placeholder="0"
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
                     />
                   </div>
                   <div>
                     <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Nước (đ/m³)</label>
                     <input 
-                      type="number" value={configPrices.water} 
-                      onChange={e => setConfigPrices({...configPrices, water: Number(e.target.value)})}
+                      type="text" value={formatPriceDisplay(draftPrices.water)} 
+                      onChange={e => handleDraftChange('water', e.target.value)}
+                      placeholder="0"
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
                     />
                   </div>
                   <div>
                     <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Phòng (đ)</label>
                     <input 
-                      type="number" value={configPrices.room} 
-                      onChange={e => setConfigPrices({...configPrices, room: Number(e.target.value)})}
+                      type="text" value={formatPriceDisplay(draftPrices.room)} 
+                      onChange={e => handleDraftChange('room', e.target.value)}
+                      placeholder="0"
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
                     />
                   </div>

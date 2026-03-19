@@ -105,13 +105,13 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
   };
 
   const s = (searchTerm || '').toLowerCase().trim();
-  const displayTenants = (s === '' 
-    ? [...tenants] 
+  const displayTenants = (s === ''
+    ? [...tenants]
     : tenants.filter(t => {
-        const tName = String(t.name || '').toLowerCase();
-        const tRoom = String(t.room || '').toLowerCase();
-        return tName.includes(s) || tRoom.includes(s);
-      })
+      const tName = String(t.name || '').toLowerCase();
+      const tRoom = String(t.room || '').toLowerCase();
+      return tName.includes(s) || tRoom.includes(s);
+    })
   ).sort((a, b) => {
     const rA = parseInt(String(a.room).replace(/\D/g, '')) || 0;
     const rB = parseInt(String(b.room).replace(/\D/g, '')) || 0;
@@ -152,15 +152,15 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
       <div className="space-y-4">
         {displayTenants.map((tenant, idx) => {
           const uniqueKey = `tenant_${tenant.id || 'no_id'}_${tenant.room}_${idx}_${Math.random().toString(36).substr(2, 9)}`;
-          
+
           return (
             <div key={uniqueKey} className="glass-card !mb-0 relative group !pb-0 overflow-hidden flex flex-col">
               <div className="p-0"> {/* Outer padding handled by glass-card */}
                 <div className="tenant-header mb-5 relative z-10">
-                  <div 
+                  <div
                     className="tenant-avatar shrink-0 border border-white/5 flex items-center justify-center bg-white/5"
-                    style={{ 
-                      width: '48px', height: '48px', 
+                    style={{
+                      width: '48px', height: '48px',
                       minWidth: '48px', minHeight: '48px',
                       maxWidth: '48px', maxHeight: '48px',
                       borderRadius: '16px'
@@ -215,7 +215,7 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
 
               {/* SEPARATE ROW FOR REMOVE ACTION - USING btn-danger CLASS */}
               <div className="border-t border-white-5 relative z-20">
-                <button 
+                <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
@@ -231,16 +231,9 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
             </div>
           );
         })}
-
-        {displayTenants.length === 0 && (
-          <div className="py-20 text-center opacity-50">
-            <Search size={40} className="mx-auto mb-4 text-muted" />
-            <p className="text-sm font-bold">Không tìm thấy dữ liệu phù hợp</p>
-          </div>
-        )}
       </div>
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={!!deletingTenant}
         title="Xác nhận xóa"
         message={`Dữ liệu khách thuê ${deletingTenant?.name} ở phòng ${deletingTenant?.room} sẽ bị xóa vĩnh viễn. Bạn có chắc chắn?`}
