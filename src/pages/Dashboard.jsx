@@ -34,7 +34,7 @@ const Dashboard = ({ tenants = [], bills = [], notifications = [] }) => {
 
   // Room Status Data
   const occupiedRoomsCount = useMemo(() => new Set(tenants.map(t => t.room)).size, [tenants]);
-  
+
   const roomStatusData = useMemo(() => [
     { name: 'Đang ở', value: occupiedRoomsCount, color: '#22c55e' },
     { name: 'Phòng trống', value: Math.max(0, TOTAL_ROOMS - occupiedRoomsCount), color: 'rgba(255, 255, 255, 0.05)' }
