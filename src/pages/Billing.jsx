@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Droplet, Zap, Receipt, History,
   ChevronRight, Camera, CheckCircle2, AlertCircle, Trash2,
@@ -233,11 +235,44 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  // Cấu hình đơn giá mặc định (khi cần thay đổi giá, bạn update trực tiếp ở đây)
-  const CONFIG_PRICES = {
+  const [configPrices, setConfigPrices] = useState({
     electricity: 5000,
     water: 15000,
     room: 3000000
+  });
+  const [loadingPrices, setLoadingPrices] = useState(true);
+  const [showPriceSettings, setShowPriceSettings] = useState(false);
+  const [isSavingPrices, setIsSavingPrices] = useState(false);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const docRef = doc(db, 'config', 'prices');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setConfigPrices(docSnap.data());
+        }
+      } catch (error) {
+        console.error("Error fetching prices:", error);
+      } finally {
+        setLoadingPrices(false);
+      }
+    };
+    fetchPrices();
+  }, []);
+
+  const handleSavePricesToDB = async () => {
+    setIsSavingPrices(true);
+    try {
+      await setDoc(doc(db, 'config', 'prices'), configPrices);
+      alert('Đã lưu cấu hình giá mới vào Database thành công!');
+      setShowPriceSettings(false);
+    } catch (error) {
+      console.error("Error saving prices:", error);
+      alert('Lỗi khi lưu cấu hình giá, vui lòng kiểm tra lại kết nối!');
+    } finally {
+      setIsSavingPrices(false);
+    }
   };
 
   const [searchRoom, setSearchRoom] = useState('');
@@ -270,9 +305,9 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
     const elecUsage = Number(currentReadings.electricity);
     const waterUsage = Number(currentReadings.water);
 
-    const elecCost = elecUsage * CONFIG_PRICES.electricity;
-    const waterCost = waterUsage * CONFIG_PRICES.water;
-    const total = CONFIG_PRICES.room + elecCost + waterCost;
+    const elecCost = elecUsage * configPrices.electricity;
+    const waterCost = waterUsage * configPrices.water;
+    const total = configPrices.room + elecCost + waterCost;
 
     const newBill = {
       id: Date.now(),
@@ -281,8 +316,8 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
       room: selectedTenant.room,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      electricity: { current: elecUsage, price: CONFIG_PRICES.electricity, cost: elecCost },
-      water: { current: waterUsage, price: CONFIG_PRICES.water, cost: waterCost },
+      electricity: { current: elecUsage, price: configPrices.electricity, cost: elecCost },
+      water: { current: waterUsage, price: configPrices.water, cost: waterCost },
       total: total,
       status: 'pending',
       date: currentReadings.date
@@ -330,7 +365,54 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {/* Create invoice section */}
           <section>
-            <h2 className="form-label" style={{ marginBottom: '12px' }}>Tạo hóa đơn mới</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h2 className="form-label" style={{ margin: 0 }}>Tạo hóa đơn mới</h2>
+              <button 
+                onClick={() => setShowPriceSettings(!showPriceSettings)}
+                style={{ background: 'none', border: 'none', color: '#f97316', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <span>⚙️</span> Cài đặt giá
+              </button>
+            </div>
+
+            {showPriceSettings && (
+              <div className="glass-card animate-slide-up" style={{ padding: '20px', marginBottom: '20px', border: '1px solid rgba(249, 115, 22, 0.4)' }}>
+                <p style={{ fontSize: '12px', color: '#f97316', fontWeight: 'bold', marginBottom: '16px', marginTop: 0, letterSpacing: '0.05em' }}>CẤU HÌNH ĐƠN GIÁ (LƯU DB)</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Điện (đ/kWh)</label>
+                    <input 
+                      type="number" value={configPrices.electricity} 
+                      onChange={e => setConfigPrices({...configPrices, electricity: Number(e.target.value)})}
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Nước (đ/m³)</label>
+                    <input 
+                      type="number" value={configPrices.water} 
+                      onChange={e => setConfigPrices({...configPrices, water: Number(e.target.value)})}
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Phòng (đ)</label>
+                    <input 
+                      type="number" value={configPrices.room} 
+                      onChange={e => setConfigPrices({...configPrices, room: Number(e.target.value)})}
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={handleSavePricesToDB}
+                  disabled={isSavingPrices}
+                  style={{ width: '100%', background: 'linear-gradient(135deg, #f97316, #fbbf24)', color: 'white', fontWeight: 'bold', padding: '14px', borderRadius: '12px', border: 'none', cursor: 'pointer', opacity: isSavingPrices ? 0.7 : 1, transition: 'all 0.2s' }}
+                >
+                  {isSavingPrices ? 'Đang lưu...' : 'Lưu cập nhật vào Firebase'}
+                </button>
+              </div>
+            )}
 
             <div style={{ position: 'relative' }}>
               <button
@@ -581,7 +663,7 @@ const Billing = ({ tenants = [], bills = [], setBills }) => {
         onClose={() => setViewingBill(null)}
         onUpdateStatus={handleUpdateStatus}
         onSave={handleSaveBill}
-        prices={CONFIG_PRICES}
+        prices={configPrices}
       />
     </div>
   );
