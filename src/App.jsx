@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { db } from './firebase';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { 
   LayoutDashboard, Users, ReceiptText, 
   BarChart3, Plus, Search, UserPlus, UserCircle, Bell
@@ -48,23 +50,18 @@ const AppContent = () => {
     const saved = localStorage.getItem('kaito_user');
     return saved ? JSON.parse(saved) : null;
   });
-  const [tenants, setTenants] = useState(() => {
-    const saved = localStorage.getItem('kaito_tenants');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [bills, setBills] = useState(() => {
-    const saved = localStorage.getItem('kaito_bills');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Hóa đơn tháng 3', message: 'Hệ thống đã tự động tạo hóa đơn cho phòng 201.', time: '10 phút trước', type: 'info', isRead: false },
-    { id: 2, title: 'Báo cáo doanh thu', message: 'Doanh thu tháng này tăng 15% so với tháng trước.', time: '2 giờ trước', type: 'success', isRead: false },
-    { id: 3, title: 'Cảnh báo thiết bị', message: 'Đồng hồ điện phòng 104 có dấu hiệu bất thường.', time: '1 ngày trước', type: 'warning', isRead: true }
-  ]);
+  const [tenants, setTenants] = useState([]);
+  const [bills, setBills] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleMarkNotificationsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+  const handleMarkNotificationsRead = async () => {
+    try {
+      const unreadNotifs = notifications.filter(n => !n.isRead);
+      for (const n of unreadNotifs) {
+        await updateDoc(doc(db, 'notifications', n.id.toString()), { isRead: true });
+      }
+    } catch(err) { console.error('Error updating notifications:', err); }
   };
 
   const handleLogin = (userData) => {
@@ -78,24 +75,60 @@ const AppContent = () => {
   };
 
   useEffect(() => {
-    localStorage.setItem('kaito_tenants', JSON.stringify(tenants));
-  }, [tenants]);
+    const unsubTenants = onSnapshot(collection(db, 'tenants'), (snapshot) => {
+      const tenantsData = [];
+      snapshot.forEach(doc => tenantsData.push({ id: doc.id, ...doc.data() }));
+      setTenants(tenantsData);
+    });
 
-  useEffect(() => {
-    localStorage.setItem('kaito_bills', JSON.stringify(bills));
-  }, [bills]);
+    const unsubBills = onSnapshot(collection(db, 'bills'), (snapshot) => {
+      const billsData = [];
+      snapshot.forEach(doc => billsData.push({ id: doc.id, ...doc.data() }));
+      billsData.sort((a, b) => b.id - a.id);
+      setBills(billsData);
+    });
 
-  const handleAddTenant = (tenant) => {
-    setTenants([...tenants, tenant]);
+    const unsubNotifications = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+      const notifsData = [];
+      snapshot.forEach(doc => notifsData.push({ id: doc.id, ...doc.data() }));
+      notifsData.sort((a, b) => b.id - a.id);
+      setNotifications(notifsData);
+    });
+
+    return () => {
+      unsubTenants();
+      unsubBills();
+      unsubNotifications();
+    };
+  }, []);
+
+  const handleAddTenant = async (tenant) => {
+    try { await setDoc(doc(db, 'tenants', tenant.id.toString()), tenant); } catch(err) { console.error('Error adding tenant:', err); }
   };
 
-  const handleRemoveTenant = (tenantId) => {
-    setTenants(prev => prev.filter(t => t.id !== tenantId));
+  const handleRemoveTenant = async (tenantId) => {
+    try { await deleteDoc(doc(db, 'tenants', tenantId.toString())); } catch(err) { console.error('Error removing tenant:', err); }
   };
 
-  const handleRestoreData = (newTenants, newBills) => {
-    setTenants(newTenants);
-    setBills(newBills);
+  const handleAddBill = async (bill) => {
+    try { await setDoc(doc(db, 'bills', bill.id.toString()), bill); } catch(err) { console.error('Error adding bill:', err); }
+  };
+
+  const handleUpdateBill = async (billId, updatedData) => {
+    try { await updateDoc(doc(db, 'bills', billId.toString()), updatedData); } catch(err) { console.error('Error updating bill:', err); }
+  };
+
+  const handleRestoreData = async (newTenants, newBills) => {
+    if (window.confirm('Khôi phục sẽ ghi đè dữ liệu trên Database. Tiếp tục?')) {
+      try {
+        for (const t of newTenants) { await setDoc(doc(db, 'tenants', t.id.toString()), t); }
+        for (const b of newBills) { await setDoc(doc(db, 'bills', b.id.toString()), b); }
+        alert('Phục hồi dữ liệu lên Firebase thành công!');
+      } catch (err) {
+        console.error(err);
+        alert('Lỗi khi tải dữ liệu lên Database!');
+      }
+    }
   };
 
   if (!user) {
@@ -112,7 +145,7 @@ const AppContent = () => {
                 <Route path="/" element={<Dashboard tenants={tenants} bills={bills} notifications={notifications} />} />
                 <Route path="/notifications" element={<Notifications notifications={notifications} onMarkAllAsRead={handleMarkNotificationsRead} />} />
                 <Route path="/tenants" element={<KaitoTenants tenants={tenants} onAddTenant={() => setIsModalOpen(true)} onRemoveTenant={handleRemoveTenant} />} />
-                <Route path="/billing" element={<Billing tenants={tenants} bills={bills} setBills={setBills} />} />
+                <Route path="/billing" element={<Billing tenants={tenants} bills={bills} onAddBill={handleAddBill} onUpdateBill={handleUpdateBill} />} />
                 <Route path="/reports" element={<Reports bills={bills} />} />
                 <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} />} />
               </>
