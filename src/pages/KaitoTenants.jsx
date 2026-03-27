@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Search, UserPlus, Briefcase, Phone,
   Calendar, HeartPulse, Timer, User, Wallet, UserMinus,
-  AlertTriangle
+  AlertTriangle, DollarSign
 } from 'lucide-react';
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
@@ -198,6 +198,18 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
                     <HeartPulse size={14} className="text-accent" />
                     <span className="text-[13px] font-bold text-rose-300">NT: {tenant.relativePhone || '---'}</span>
                   </div>
+                </div>
+
+                <div className="flex-between py-5 border-t border-white-5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                      <DollarSign size={16} />
+                    </div>
+                    <span className="text-xs font-black uppercase text-muted tracking-widest">Giá thuê</span>
+                  </div>
+                  <span className="text-lg font-black text-blue-400">
+                    {tenant.roomPrice ? Number(tenant.roomPrice).toLocaleString() + 'đ' : 'Mặc định'}
+                  </span>
                 </div>
 
                 <div className="flex-between py-5 border-t border-white-5">
