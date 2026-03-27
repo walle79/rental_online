@@ -25,14 +25,14 @@ const EditableRow = ({ label, value, unit, onSave }) => {
       {editing ? (
         <>
           <input
-            type="number"
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
+            type="text"
+            value={draft ? Number(draft).toLocaleString() : ''}
+            onChange={e => setDraft(e.target.value.replace(/\D/g, ''))}
             autoFocus
             style={{
               background: 'rgba(255,255,255,0.08)', border: '1.5px solid #f97316',
               borderRadius: '10px', color: 'white', padding: '6px 10px',
-              fontSize: '14px', fontWeight: 700, width: '100px', textAlign: 'right', outline: 'none'
+              fontSize: '14px', fontWeight: 700, width: '115px', textAlign: 'right', outline: 'none'
             }}
           />
           {unit && <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '2px' }}>{unit}</span>}
@@ -67,7 +67,8 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
   const [localBill, setLocalBill] = useState(bill);
 
   const isPaid = localBill.status === 'paid';
-  const rentCost = localBill.total - (localBill.electricity?.cost || 0) - (localBill.water?.cost || 0);
+  const extraServicesTotal = (localBill.extraServices || []).reduce((sum, s) => sum + s.cost, 0);
+  const rentCost = localBill.total - (localBill.electricity?.cost || 0) - (localBill.water?.cost || 0) - extraServicesTotal;
 
   const updateAndSave = (updated) => {
     setLocalBill(updated);
@@ -75,17 +76,23 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
   };
 
   const handleRentChange = (newRent) => {
-    updateAndSave({ ...localBill, total: newRent + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) });
+    updateAndSave({ ...localBill, total: newRent + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + extraServicesTotal });
   };
 
   const handleElecChange = (newKwh) => {
     const newCost = newKwh * elecPrice;
-    updateAndSave({ ...localBill, electricity: { current: newKwh, price: elecPrice, cost: newCost }, total: rentCost + newCost + (localBill.water?.cost || 0) });
+    updateAndSave({ ...localBill, electricity: { current: newKwh, price: elecPrice, cost: newCost }, total: rentCost + newCost + (localBill.water?.cost || 0) + extraServicesTotal });
   };
 
   const handleWaterChange = (newM3) => {
     const newCost = newM3 * waterPrice;
-    updateAndSave({ ...localBill, water: { current: newM3, price: waterPrice, cost: newCost }, total: rentCost + (localBill.electricity?.cost || 0) + newCost });
+    updateAndSave({ ...localBill, water: { current: newM3, price: waterPrice, cost: newCost }, total: rentCost + (localBill.electricity?.cost || 0) + newCost + extraServicesTotal });
+  };
+
+  const handleExtraServiceChange = (id, newCost) => {
+    const newExtraServices = (localBill.extraServices || []).map(s => s.id === id ? { ...s, cost: newCost } : s);
+    const newExtraTotal = newExtraServices.reduce((sum, s) => sum + s.cost, 0);
+    updateAndSave({ ...localBill, extraServices: newExtraServices, total: rentCost + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + newExtraTotal });
   };
 
   const handleToggleStatus = () => {
@@ -144,6 +151,15 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
         <EditableRow label="Tiền phòng" value={rentCost} onSave={handleRentChange} />
         <EditableRow label="Điện" value={localBill.electricity?.current ?? 0} unit="kWh" onSave={handleElecChange} />
         <EditableRow label="Nước" value={localBill.water?.current ?? 0} unit="m³" onSave={handleWaterChange} />
+
+        {(localBill.extraServices || []).map(service => (
+          <EditableRow 
+            key={service.id} 
+            label={service.name} 
+            value={service.cost} 
+            onSave={(newCost) => handleExtraServiceChange(service.id, newCost)} 
+          />
+        ))}
 
         <div style={{ padding: '8px 0 0 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
@@ -234,6 +250,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     water: '',
     date: new Date().toISOString().split('T')[0]
   });
+  const [extraServices, setExtraServices] = useState([]);
 
   const [configPrices, setConfigPrices] = useState({
     electricity: 5000,
@@ -335,7 +352,14 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
     const elecCost = elecUsage * configPrices.electricity;
     const waterCost = waterUsage * configPrices.water;
-    const total = configPrices.room + elecCost + waterCost;
+    const roomCost = selectedTenant.roomPrice ? Number(selectedTenant.roomPrice) : configPrices.room;
+    
+    const validExtraServices = extraServices
+      .filter(s => s.name.trim() !== '' && (Number(s.cost) || 0) > 0)
+      .map(s => ({ ...s, cost: Number(s.cost) }));
+    const extraServicesTotal = validExtraServices.reduce((sum, s) => sum + s.cost, 0);
+
+    const total = roomCost + elecCost + waterCost + extraServicesTotal;
 
     const newBill = {
       id: Date.now(),
@@ -346,6 +370,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
       year: new Date().getFullYear(),
       electricity: { current: elecUsage, price: configPrices.electricity, cost: elecCost },
       water: { current: waterUsage, price: configPrices.water, cost: waterCost },
+      extraServices: validExtraServices,
       total: total,
       status: 'pending',
       date: currentReadings.date
@@ -354,6 +379,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     onAddBill(newBill);
     setSelectedTenant(null);
     setCurrentReadings({ electricity: '', water: '', date: new Date().toISOString().split('T')[0] });
+    setExtraServices([]);
   };
 
   const handleUpdateStatus = (billId, newStatus) => {
@@ -365,7 +391,6 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
   const handleSaveBill = (updatedBill) => {
     onUpdateBill(updatedBill.id, updatedBill);
-    setViewingBill(null);
   };
 
   // Available months for filter
@@ -395,7 +420,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
           <section>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <h2 className="form-label" style={{ margin: 0 }}>Tạo hóa đơn mới</h2>
-              <button 
+              <button
                 onClick={() => setShowPriceSettings(!showPriceSettings)}
                 style={{ background: 'none', border: 'none', color: '#f97316', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
@@ -406,36 +431,27 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
             {showPriceSettings && (
               <div className="glass-card animate-slide-up" style={{ padding: '20px', marginBottom: '20px', border: '1px solid rgba(249, 115, 22, 0.4)' }}>
                 <p style={{ fontSize: '12px', color: '#f97316', fontWeight: 'bold', marginBottom: '16px', marginTop: 0, letterSpacing: '0.05em' }}>CẤU HÌNH ĐƠN GIÁ (LƯU DB)</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
                   <div>
                     <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Điện (đ/kWh)</label>
-                    <input 
-                      type="text" value={formatPriceDisplay(draftPrices.electricity)} 
+                    <input
+                      type="text" value={formatPriceDisplay(draftPrices.electricity)}
                       onChange={e => handleDraftChange('electricity', e.target.value)}
                       placeholder="0"
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
                     />
                   </div>
                   <div>
                     <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Nước (đ/m³)</label>
-                    <input 
-                      type="text" value={formatPriceDisplay(draftPrices.water)} 
+                    <input
+                      type="text" value={formatPriceDisplay(draftPrices.water)}
                       onChange={e => handleDraftChange('water', e.target.value)}
                       placeholder="0"
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Phòng (đ)</label>
-                    <input 
-                      type="text" value={formatPriceDisplay(draftPrices.room)} 
-                      onChange={e => handleDraftChange('room', e.target.value)}
-                      placeholder="0"
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }} 
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
                     />
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={handleSavePricesToDB}
                   disabled={isSavingPrices}
                   style={{ width: '100%', background: 'linear-gradient(135deg, #f97316, #fbbf24)', color: 'white', fontWeight: 'bold', padding: '14px', borderRadius: '12px', border: 'none', cursor: 'pointer', opacity: isSavingPrices ? 0.7 : 1, transition: 'all 0.2s' }}
@@ -631,7 +647,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
       ) : (
         <div className="animate-slide-up">
           <button
-            onClick={() => setSelectedTenant(null)}
+            onClick={() => { setSelectedTenant(null); setExtraServices([]); }}
             className="text-primary text-xs font-bold mb-6 flex items-center gap-1 uppercase tracking-widest"
           >
             ← Hủy chọn phòng
@@ -639,7 +655,14 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
           <div className="glass-card !mb-0 p-6">
             <h2 className="text-xl font-bold mb-1">Tính tiền Phòng {selectedTenant.room}</h2>
-            <p className="text-muted text-sm mb-8">{selectedTenant.name}</p>
+            <p className="text-muted text-sm mb-4">{selectedTenant.name}</p>
+
+            <div className="mb-6 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
+              <span className="text-xs font-bold text-muted uppercase tracking-widest">Giá phòng áp dụng</span>
+              <span className="text-sm font-black text-primary">
+                {selectedTenant.roomPrice ? Number(selectedTenant.roomPrice).toLocaleString() + 'đ' : configPrices.room.toLocaleString() + 'đ (Mặc định)'}
+              </span>
+            </div>
 
             <form onSubmit={handleCalculate} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
@@ -649,7 +672,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                   </label>
                   <input
                     type="number" required
-                    className="w-full bg-white-10 border-white-10 rounded-xl p-4 text-white focus:border-primary outline-none"
+                    className="w-full bg-[#1e293b] border border-white/10 rounded-xl p-4 text-white font-bold text-lg focus:border-primary outline-none"
                     placeholder="VD: 30"
                     value={currentReadings.electricity}
                     onChange={e => setCurrentReadings({ ...currentReadings, electricity: e.target.value })}
@@ -661,7 +684,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                   </label>
                   <input
                     type="number" required
-                    className="w-full bg-white-10 border-white-10 rounded-xl p-4 text-white focus:border-primary outline-none"
+                    className="w-full bg-[#1e293b] border border-white/10 rounded-xl p-4 text-white font-bold text-lg focus:border-primary outline-none"
                     placeholder="VD: 2"
                     value={currentReadings.water}
                     onChange={e => setCurrentReadings({ ...currentReadings, water: e.target.value })}
@@ -673,13 +696,146 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                 <label className="text-[10px] font-bold text-muted flex items-center gap-1 uppercase">
                   <Camera size={10} /> Ảnh chụp chứng minh
                 </label>
-                <div className="border border-white-10 rounded-2xl p-6 text-center bg-white-5 flex flex-col items-center justify-center gap-2">
-                  <div className="w-10 h-10 bg-white-5 rounded-full flex items-center justify-center text-muted">
+                <div className="border border-white/10 rounded-2xl p-6 text-center bg-white/5 flex flex-col items-center justify-center gap-2">
+                  <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-muted">
                     <Camera size={20} />
                   </div>
                   <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Bấm để tải ảnh</p>
                 </div>
               </div>
+
+              {(() => {
+                const previewElecUsage = Number(currentReadings.electricity) || 0;
+                const previewWaterUsage = Number(currentReadings.water) || 0;
+                const previewExtraServices = extraServices.filter(s => s.name.trim() !== '' && (Number(s.cost) || 0) > 0);
+                
+                if (previewElecUsage > 0 || previewWaterUsage > 0 || extraServices.length > 0) {
+                  const previewElecCost = previewElecUsage * configPrices.electricity;
+                  const previewWaterCost = previewWaterUsage * configPrices.water;
+                  const previewRoomCost = selectedTenant.roomPrice ? Number(selectedTenant.roomPrice) : configPrices.room;
+                  const previewExtraCost = previewExtraServices.reduce((sum, s) => sum + Number(s.cost), 0);
+                  const previewTotal = previewRoomCost + previewElecCost + previewWaterCost + previewExtraCost;
+
+                  return (
+                    <div style={{ marginTop: '24px', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>Tiền phòng</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{previewRoomCost.toLocaleString()}đ</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>Điện {previewElecUsage > 0 && `(${previewElecUsage} kWh)`}</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{previewElecCost.toLocaleString()}đ</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>Nước {previewWaterUsage > 0 && `(${previewWaterUsage} m³)`}</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{previewWaterCost.toLocaleString()}đ</span>
+                      </div>
+
+                      {extraServices.map((service, index) => (
+                        <div key={service.id} style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }} className="animate-slide-up">
+                          {service.isSaved ? (
+                            <>
+                              <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>{service.name}</span>
+                              <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{Number(service.cost).toLocaleString()}đ</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newServices = [...extraServices];
+                                  newServices[index].isSaved = false;
+                                  setExtraServices(newServices);
+                                }}
+                                style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                <Edit3 size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setExtraServices(extraServices.filter(s => s.id !== service.id))}
+                                style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(244,63,94,0.1)', color: '#f43f5e', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                <X size={14} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                placeholder="Tên DV (VD: Rác...)"
+                                value={service.name}
+                                onChange={e => {
+                                  const newServices = [...extraServices];
+                                  newServices[index].name = e.target.value;
+                                  setExtraServices(newServices);
+                                }}
+                                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px', outline: 'none' }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Phí (đ)"
+                                value={service.cost ? Number(service.cost).toLocaleString() : ''}
+                                onChange={e => {
+                                  const rawValue = e.target.value.replace(/\D/g, '');
+                                  const newServices = [...extraServices];
+                                  newServices[index].cost = rawValue;
+                                  setExtraServices(newServices);
+                                }}
+                                style={{ width: '90px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px', textAlign: 'right', outline: 'none' }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!service.name.trim() || !service.cost) return alert('Vui lòng nhập tên và phí dịch vụ!');
+                                  const newServices = [...extraServices];
+                                  newServices[index].isSaved = true;
+                                  setExtraServices(newServices);
+                                }}
+                                style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setExtraServices(extraServices.filter(s => s.id !== service.id))}
+                                style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(244,63,94,0.1)', color: '#f43f5e', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                <X size={14} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap', textTransform: 'uppercase', fontWeight: 900, letterSpacing: '0.05em' }}>Dịch vụ bổ sung</span>
+                        <button
+                          type="button"
+                          onClick={() => setExtraServices([...extraServices, { id: Date.now() + Math.random(), name: '', cost: '', isSaved: false }])}
+                          style={{ background: 'none', border: 'none', color: '#f97316', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '0.05em' }}
+                        >
+                          + Thêm dịch vụ
+                        </button>
+                      </div>
+
+                      <div style={{ padding: '8px 0 0 0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                          <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí điện ({previewElecUsage} × {configPrices.electricity.toLocaleString()}đ)</span>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>{previewElecCost.toLocaleString()}đ</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                          <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí nước ({previewWaterUsage} × {configPrices.water.toLocaleString()}đ)</span>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>{previewWaterCost.toLocaleString()}đ</span>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>TỔNG CỘNG</span>
+                        <span style={{ fontSize: '26px', fontWeight: 900, color: '#f97316' }}>{previewTotal.toLocaleString()}đ</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               <button type="submit" className="btn-primary w-full py-5 rounded-2xl shadow-lg mt-4">
                 Tạo hóa đơn

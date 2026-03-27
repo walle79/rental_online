@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Hash, Calendar, Phone, ShieldCheck, HeartPulse, Building2, Wallet, AlertCircle } from 'lucide-react';
+import { X, Save, User, Hash, Calendar, Phone, ShieldCheck, HeartPulse, Building2, Wallet, AlertCircle, DollarSign } from 'lucide-react';
 
 const TenantModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -10,7 +10,8 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
     relativePhone: '',
     contractDate: new Date().toISOString().split('T')[0],
     occupation: '',
-    deposit: ''
+    deposit: '',
+    roomPrice: ''
   });
   const [error, setError] = useState('');
 
@@ -24,7 +25,8 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
         relativePhone: '',
         contractDate: new Date().toISOString().split('T')[0],
         occupation: '',
-        deposit: ''
+        deposit: '',
+        roomPrice: ''
       });
       setError('');
     }
@@ -67,6 +69,11 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
   const handleDepositChange = (e) => {
     const rawValue = e.target.value.replace(/\D/g, '');
     setFormData({ ...formData, deposit: rawValue });
+  };
+
+  const handleRoomPriceChange = (e) => {
+    const rawValue = e.target.value.replace(/\D/g, '');
+    setFormData({ ...formData, roomPrice: rawValue });
   };
 
   return (
@@ -195,6 +202,23 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
                 value={formData.occupation}
                 onChange={e => setFormData({...formData, occupation: e.target.value})}
               />
+            </div>
+          </div>
+
+          <div className="form-group border-b border-white/5 pb-2">
+            <label className="form-label !mb-1.5">Giá phòng/tháng</label>
+            <div className="input-icon-wrapper">
+              <DollarSign size={18} className="input-icon" />
+              <input 
+                type="text"
+                required
+                className="form-input !bg-transparent"
+                style={{ paddingRight: '60px' }}
+                placeholder="2.000.000"
+                value={formatVND(formData.roomPrice)}
+                onChange={handleRoomPriceChange}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary pointer-events-none">VNĐ</span>
             </div>
           </div>
 
