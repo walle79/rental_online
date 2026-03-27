@@ -168,7 +168,7 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
                   >
                     <User size={24} className="text-white/60" />
                   </div>
-                  <div className="flex-1 min-w-0 ml-4 max-w-full">
+                  <div className="flex-1 min-w-0 ml-3 max-w-full">
                     <div className="flex justify-between items-start gap-3">
                       <h3 className="text-[17px] font-bold text-white truncate pr-2">{tenant.name || '---'}</h3>
                       <div className="room-badge whitespace-nowrap shrink-0">PHÒNG {tenant.room || '---'}</div>
@@ -180,48 +180,66 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
                   </div>
                 </div>
 
-                {/* INCREASED GAP-Y TO 7 FOR MORE BREATHING ROOM */}
-                <div className="grid grid-cols-2 gap-y-7 gap-x-6 py-6 border-t border-white-5">
-                  <div className="flex items-center gap-2.5">
-                    <Timer size={14} className="text-primary" />
-                    <span className="text-[13px] font-bold text-white/90">{calculateDuration(tenant.contractDate)}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 justify-end">
-                    <Calendar size={14} className="text-primary" />
-                    <span className="text-[13px] font-bold text-white/90">{tenant.contractDate || '---'}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <Phone size={14} className="text-primary" />
-                    <span className="text-[13px] font-bold text-white/90">{tenant.phone || '---'}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 justify-end">
-                    <HeartPulse size={14} className="text-accent" />
-                    <span className="text-[13px] font-bold text-rose-300">NT: {tenant.relativePhone || '---'}</span>
-                  </div>
-                </div>
-
-                <div className="flex-between py-5 border-t border-white-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                      <DollarSign size={16} />
+                <div className="mx-4 mb-6 bg-white/[0.02] rounded-2xl border border-white/5 p-4 flex flex-col space-y-[14px]">
+                  {/* Thời gian ở */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <Timer size={16} className="text-primary shrink-0 opacity-80" />
+                      <span className="text-[13px] text-muted font-medium">Thời gian ở</span>
                     </div>
-                    <span className="text-xs font-black uppercase text-muted tracking-widest">Giá thuê</span>
+                    <span className="text-[14px] font-bold text-white">{calculateDuration(tenant.contractDate)}</span>
                   </div>
-                  <span className="text-lg font-black text-blue-400">
-                    {tenant.roomPrice ? Number(tenant.roomPrice).toLocaleString() + 'đ' : 'Mặc định'}
-                  </span>
-                </div>
 
-                <div className="flex-between py-5 border-t border-white-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-primary">
-                      <Wallet size={16} />
+                  {/* Ngày thuê */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <Calendar size={16} className="text-primary shrink-0 opacity-80" />
+                      <span className="text-[13px] text-muted font-medium">Ngày thuê</span>
                     </div>
-                    <span className="text-xs font-black uppercase text-muted tracking-widest">Tiền cọc</span>
+                    <span className="text-[14px] font-bold text-white">
+                      {tenant.contractDate ? tenant.contractDate.split('-').reverse().join('/') : '---'}
+                    </span>
                   </div>
-                  <span className="text-lg font-black text-primary">
-                    {tenant.deposit ? Number(tenant.deposit).toLocaleString() + 'đ' : '---'}
-                  </span>
+
+                  {/* SĐT */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <Phone size={16} className="text-primary shrink-0 opacity-80" />
+                      <span className="text-[13px] text-muted font-medium">SĐT</span>
+                    </div>
+                    <span className="text-[14px] font-bold text-white">{tenant.phone || '---'}</span>
+                  </div>
+
+                  {/* SĐT NT */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <HeartPulse size={16} className="text-primary shrink-0 opacity-80" />
+                      <span className="text-[13px] text-muted font-medium">SĐT NT</span>
+                    </div>
+                    <span className="text-[14px] font-bold text-white">{tenant.relativePhone || '---'}</span>
+                  </div>
+
+                  {/* Giá phòng */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <DollarSign size={16} className="text-primary shrink-0 opacity-80" />
+                      <span className="text-[13px] text-muted font-medium">Giá phòng</span>
+                    </div>
+                    <span className="text-[14px] font-bold text-white">
+                      {tenant.roomPrice ? Number(tenant.roomPrice).toLocaleString() + 'đ' : 'Mặc định'}
+                    </span>
+                  </div>
+
+                  {/* Tiền cọc */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <Wallet size={16} className="text-primary shrink-0 opacity-80" />
+                      <span className="text-[13px] text-muted font-medium">Tiền cọc</span>
+                    </div>
+                    <span className="text-[14px] font-bold text-primary">
+                      {tenant.deposit ? Number(tenant.deposit).toLocaleString() + 'đ' : '---'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
