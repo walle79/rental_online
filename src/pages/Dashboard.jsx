@@ -57,7 +57,7 @@ const Dashboard = ({ tenants = [], bills = [], notifications = [] }) => {
     }
 
     return [
-      { name: 'Đã thu', value: paid, color: '#f97316' },
+      { name: 'Đã thu', value: paid, color: '#22c55e' },
       { name: 'Chưa thu', value: pending, color: '#f43f5e' }
     ];
   }, [bills]);
@@ -109,7 +109,7 @@ const Dashboard = ({ tenants = [], bills = [], notifications = [] }) => {
         <div className="glass-card revenue-card !mb-0">
           <div className="flex-between mb-2">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Doanh thu tháng {new Date().getMonth() + 1}</h3>
-            <span className="text-xl font-black text-white">{totalRevenue.toLocaleString()}đ</span>
+            <span className="text-xl font-black" style={{ color: '#22c55e' }}>{totalRevenue.toLocaleString()}đ</span>
           </div>
           {pendingRevenue > 0 && (
             <div className="flex-between">

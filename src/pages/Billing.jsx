@@ -767,7 +767,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                                   newServices[index].name = e.target.value;
                                   setExtraServices(newServices);
                                 }}
-                                style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px', outline: 'none' }}
+                                style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px', outline: 'none' }}
                               />
                               <input
                                 type="text"
@@ -779,7 +779,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                                   newServices[index].cost = rawValue;
                                   setExtraServices(newServices);
                                 }}
-                                style={{ width: '90px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px', textAlign: 'right', outline: 'none' }}
+                                style={{ width: '90px', flexShrink: 0, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px', textAlign: 'right', outline: 'none' }}
                               />
                               <button
                                 type="button"
