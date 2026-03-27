@@ -98,9 +98,9 @@ const Dashboard = ({ tenants = [], bills = [], notifications = [] }) => {
         <div className="text-[10px] font-bold text-white uppercase tracking-[0.2em] whitespace-nowrap opacity-60">
           Huế, {formatDateTime(currentTime)}
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-bold text-white whitespace-nowrap">
+        <div className="flex items-center gap-1.5 text-[11px] font-bold text-white whitespace-nowrap">
           <MapPin size={10} className="text-primary" />
-          <span>04 Dương Thiệu Tước</span>
+          <span> 04 Dương Thiệu Tước</span>
         </div>
       </div>
 
@@ -123,8 +123,8 @@ const Dashboard = ({ tenants = [], bills = [], notifications = [] }) => {
         <div className="glass-card">
           <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Sơ đồ phòng (20 phòng)</h3>
           <div className="flex gap-6 mb-6">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-success">Đang thuê ({occupiedRoomsCount})</h3>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted">Trống ({TOTAL_ROOMS - occupiedRoomsCount})</h3>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-success">Đang thuê ({occupiedRoomsCount})</h3>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted">Trống ({TOTAL_ROOMS - occupiedRoomsCount})</h3>
           </div>
           <div className="space-y-8">
             {floors.map(floor => (
