@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, Cell, PieChart, Pie
 } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Receipt, CheckCircle2, Check, X, Edit3, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Receipt, CheckCircle2, Check, X, Edit3, ChevronLeft, ChevronRight, Calendar, Zap, Droplet } from 'lucide-react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
 
@@ -108,10 +108,12 @@ const Reports = ({ bills = [] }) => {
   }, [paidBills, selectedYear]);
 
   // ── Stats for selected period ──────────────────────────────────────────────
-  const { growthPct, thisMonthRevenue, prevM, prevY } = useMemo(() => {
-    const thisMonth = paidBills
-      .filter(b => b.year === selectedYear && b.month === selectedMonth)
-      .reduce((sum, b) => sum + b.total, 0);
+  const { growthPct, thisMonthRevenue, thisMonthElec, thisMonthWater, prevM, prevY } = useMemo(() => {
+    const monthBills = paidBills.filter(b => b.year === selectedYear && b.month === selectedMonth);
+    
+    const thisMonth = monthBills.reduce((sum, b) => sum + b.total, 0);
+    const thisMonthElecTotal = monthBills.reduce((sum, b) => sum + (b.electricity?.cost || 0), 0);
+    const thisMonthWaterTotal = monthBills.reduce((sum, b) => sum + (b.water?.cost || 0), 0);
 
     const pm = selectedMonth === 1 ? 12 : selectedMonth - 1;
     const py = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
@@ -121,7 +123,14 @@ const Reports = ({ bills = [] }) => {
       .reduce((sum, b) => sum + b.total, 0);
 
     const pct = prevMonth === 0 ? null : ((thisMonth - prevMonth) / prevMonth) * 100;
-    return { growthPct: pct, thisMonthRevenue: thisMonth, prevM: pm, prevY: py };
+    return { 
+      growthPct: pct, 
+      thisMonthRevenue: thisMonth, 
+      thisMonthElec: thisMonthElecTotal, 
+      thisMonthWater: thisMonthWaterTotal, 
+      prevM: pm, 
+      prevY: py 
+    };
   }, [paidBills, selectedYear, selectedMonth]);
 
   const yearlyRevenue = useMemo(() =>
@@ -252,29 +261,46 @@ const Reports = ({ bills = [] }) => {
         <div className="flex justify-between items-center mb-4">
           <p className="text-[10px] font-black uppercase tracking-widest text-primary">Dữ liệu Tháng {selectedMonth}/{selectedYear}</p>
           {loading && <div className="animate-spin w-3 h-3 border-2 border-primary border-t-transparent rounded-full"></div>}
-        </div>        <div className="grid grid-cols-2 gap-4">
-          <div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-12 gap-y-6 px-4 py-2">
+          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 size={13} className="text-emerald-400" />
-              <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Đã thu ({paidCount})</span>
+              <CheckCircle2 size={14} style={{ color: '#34d399' }} />
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Đã thu ({paidCount})</span>
             </div>
-            <p className="text-base font-black" style={{ color: '#22c55e' }}>{thisMonthRevenue.toLocaleString()}đ</p>
+            <p style={{ fontSize: '20px', fontWeight: 900, color: '#22c55e' }}>{thisMonthRevenue.toLocaleString()}đ</p>
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2 mb-1">
-              <Receipt size={13} className="text-amber-400" />
-              <span className="text-[10px] font-bold text-muted uppercase tracking-wider">Chờ thu ({pendingCount})</span>
+              <Receipt size={14} style={{ color: '#fbbf24' }} />
+              <span style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Chờ thu ({pendingCount})</span>
             </div>
-            <p className="text-base font-black" style={{ color: pendingTotal > 0 ? '#f59e0b' : 'white' }}>
-              {pendingTotal.toLocaleString()}đ
-            </p>
+            <p style={{ fontSize: '20px', fontWeight: 900, color: '#f59e0b' }}>{pendingTotal.toLocaleString()}đ</p>
+          </div>
+
+          {/* Separator Line */}
+          <div style={{ gridColumn: 'span 2', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)', margin: '2px 0' }} />
+
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap size={12} style={{ color: '#fbbf24' }} fill="currentColor" />
+              <span style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tổng điện thu</span>
+            </div>
+            <p style={{ fontSize: '15px', fontWeight: 900, color: '#f8fafc' }}>{thisMonthElec.toLocaleString()}đ</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Droplet size={12} style={{ color: '#60a5fa' }} fill="currentColor" />
+              <span style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tổng nước thu</span>
+            </div>
+            <p style={{ fontSize: '15px', fontWeight: 900, color: '#f8fafc' }}>{thisMonthWater.toLocaleString()}đ</p>
           </div>
         </div>
 
 
 
-        <div className="mt-6 pt-6 border-t border-white/10 space-y-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-4">Chi phí thực tế (Đã trả)</p>
+        <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-2">Chi phí thực tế (Đã trả)</p>
           
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '32px' }}>
             <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>Tiền điện</span>

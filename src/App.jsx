@@ -110,6 +110,10 @@ const AppContent = () => {
     try { await deleteDoc(doc(db, 'tenants', tenantId.toString())); } catch(err) { console.error('Error removing tenant:', err); }
   };
 
+  const handleUpdateTenant = async (tenantId, updatedData) => {
+    try { await updateDoc(doc(db, 'tenants', tenantId.toString()), updatedData); } catch(err) { console.error('Error updating tenant:', err); }
+  };
+
   const handleAddBill = async (bill) => {
     try { await setDoc(doc(db, 'bills', bill.id.toString()), bill); } catch(err) { console.error('Error adding bill:', err); }
   };
@@ -144,7 +148,7 @@ const AppContent = () => {
               <>
                 <Route path="/" element={<Dashboard tenants={tenants} bills={bills} notifications={notifications} />} />
                 <Route path="/notifications" element={<Notifications notifications={notifications} onMarkAllAsRead={handleMarkNotificationsRead} />} />
-                <Route path="/tenants" element={<KaitoTenants tenants={tenants} onAddTenant={() => setIsModalOpen(true)} onRemoveTenant={handleRemoveTenant} />} />
+                <Route path="/tenants" element={<KaitoTenants tenants={tenants} onAddTenant={() => setIsModalOpen(true)} onRemoveTenant={handleRemoveTenant} onUpdateTenant={handleUpdateTenant} />} />
                 <Route path="/billing" element={<Billing tenants={tenants} bills={bills} onAddBill={handleAddBill} onUpdateBill={handleUpdateBill} />} />
                 <Route path="/reports" element={<Reports bills={bills} />} />
                 <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} />} />
