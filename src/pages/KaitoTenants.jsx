@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Search, UserPlus, Briefcase, Phone,
   Calendar, HeartPulse, Timer, User, Wallet, UserMinus,
-  AlertTriangle, DollarSign
+  AlertTriangle, DollarSign, Edit3, Check, X
 } from 'lucide-react';
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
@@ -76,13 +76,90 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
   );
 };
 
-const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
+const TenantEditableRow = ({ icon: Icon, label, value, type = 'text', onSave, suffix = '' }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  const formatDisplay = (val) => {
+    if (!val && val !== 0) return '---';
+    if (type === 'number') return Number(val).toLocaleString() + suffix;
+    if (type === 'date' && val) return val.split('-').reverse().join('/');
+    return val + suffix;
+  };
+
+  const handleSave = () => {
+    let finalValue = draft;
+    if (type === 'number') finalValue = draft.toString().replace(/\D/g, '');
+    onSave(finalValue);
+    setEditing(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="flex items-center gap-3">
+        {Icon && <Icon size={16} className="text-primary shrink-0 opacity-80" />}
+        <span className="text-[13px] text-muted font-medium">{label}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {editing ? (
+          <>
+            <input
+              type={type === 'number' ? 'text' : type}
+              value={type === 'number' ? (draft ? Number(draft).toLocaleString() : '') : draft}
+              onChange={e => {
+                let val = e.target.value;
+                if (type === 'number') val = val.replace(/\D/g, '');
+                setDraft(val);
+              }}
+              autoFocus
+              style={{
+                background: 'rgba(255,255,255,0.08)', border: '1.5px solid #f97316',
+                borderRadius: '8px', color: 'white', padding: '4px 8px',
+                fontSize: '13px', fontWeight: 700, width: type === 'date' ? '130px' : '110px', textAlign: 'right', outline: 'none'
+              }}
+            />
+            <button
+              onClick={handleSave}
+              style={{ background: '#22c55e', border: 'none', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Check size={14} color="white" strokeWidth={3} />
+            </button>
+            <button
+              onClick={() => { setDraft(value); setEditing(false); }}
+              style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={14} color="#94a3b8" />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className={`text-[14px] font-bold ${label === 'Tiền cọc' ? 'text-primary' : 'text-white'}`}>
+              {formatDisplay(value)}
+            </span>
+            <button
+              onClick={() => { setDraft(value); setEditing(true); }}
+              style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Edit3 size={12} color="#f97316" strokeWidth={2.5} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenant }) => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const initialRoom = queryParams.get('room') || '';
 
   const [searchTerm, setSearchTerm] = useState(initialRoom);
   const [deletingTenant, setDeletingTenant] = useState(null);
+
+  const handleUpdateField = (tenantId, field, newValue) => {
+    onUpdateTenant(tenantId, { [field]: newValue });
+  };
 
   useEffect(() => {
     if (initialRoom) {
@@ -191,55 +268,51 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant }) => {
                   </div>
 
                   {/* Ngày thuê */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <Calendar size={16} className="text-primary shrink-0 opacity-80" />
-                      <span className="text-[13px] text-muted font-medium">Ngày thuê</span>
-                    </div>
-                    <span className="text-[14px] font-bold text-white">
-                      {tenant.contractDate ? tenant.contractDate.split('-').reverse().join('/') : '---'}
-                    </span>
-                  </div>
+                  <TenantEditableRow 
+                    icon={Calendar} 
+                    label="Ngày thuê" 
+                    value={tenant.contractDate} 
+                    type="date" 
+                    onSave={(val) => handleUpdateField(tenant.id, 'contractDate', val)} 
+                  />
 
                   {/* SĐT */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <Phone size={16} className="text-primary shrink-0 opacity-80" />
-                      <span className="text-[13px] text-muted font-medium">SĐT</span>
-                    </div>
-                    <span className="text-[14px] font-bold text-white">{tenant.phone || '---'}</span>
-                  </div>
+                  <TenantEditableRow 
+                    icon={Phone} 
+                    label="SĐT" 
+                    value={tenant.phone} 
+                    type="tel" 
+                    onSave={(val) => handleUpdateField(tenant.id, 'phone', val)} 
+                  />
 
                   {/* SĐT NT */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <HeartPulse size={16} className="text-primary shrink-0 opacity-80" />
-                      <span className="text-[13px] text-muted font-medium">SĐT NT</span>
-                    </div>
-                    <span className="text-[14px] font-bold text-white">{tenant.relativePhone || '---'}</span>
-                  </div>
+                  <TenantEditableRow 
+                    icon={HeartPulse} 
+                    label="SĐT NT" 
+                    value={tenant.relativePhone} 
+                    type="tel" 
+                    onSave={(val) => handleUpdateField(tenant.id, 'relativePhone', val)} 
+                  />
 
                   {/* Giá phòng */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <DollarSign size={16} className="text-primary shrink-0 opacity-80" />
-                      <span className="text-[13px] text-muted font-medium">Giá phòng</span>
-                    </div>
-                    <span className="text-[14px] font-bold text-white">
-                      {tenant.roomPrice ? Number(tenant.roomPrice).toLocaleString() + 'đ' : 'Mặc định'}
-                    </span>
-                  </div>
+                  <TenantEditableRow 
+                    icon={DollarSign} 
+                    label="Giá phòng" 
+                    value={tenant.roomPrice} 
+                    type="number" 
+                    suffix="đ"
+                    onSave={(val) => handleUpdateField(tenant.id, 'roomPrice', val)} 
+                  />
 
                   {/* Tiền cọc */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <Wallet size={16} className="text-primary shrink-0 opacity-80" />
-                      <span className="text-[13px] text-muted font-medium">Tiền cọc</span>
-                    </div>
-                    <span className="text-[14px] font-bold text-primary">
-                      {tenant.deposit ? Number(tenant.deposit).toLocaleString() + 'đ' : '---'}
-                    </span>
-                  </div>
+                  <TenantEditableRow 
+                    icon={Wallet} 
+                    label="Tiền cọc" 
+                    value={tenant.deposit} 
+                    type="number" 
+                    suffix="đ"
+                    onSave={(val) => handleUpdateField(tenant.id, 'deposit', val)} 
+                  />
                 </div>
               </div>
 
