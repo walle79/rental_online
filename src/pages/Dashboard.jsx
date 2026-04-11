@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip
 } from 'recharts';
-import { Home, User, MapPin, Clock, Bell, UserCircle } from 'lucide-react';
+import { Home, User, MapPin, Clock, Headset, UserCircle } from 'lucide-react';
 
-const Dashboard = ({ tenants = [], bills = [], notifications = [] }) => {
+const Dashboard = ({ tenants = [], bills = [], supportRequests = [] }) => {
   const navigate = useNavigate();
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unresolvedCount = supportRequests.filter(r => r.status !== 'resolved').length;
   const TOTAL_ROOMS = 20;
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -85,11 +85,11 @@ const Dashboard = ({ tenants = [], bills = [], notifications = [] }) => {
             <UserCircle size={24} />
           </button>
           <button
-            onClick={() => navigate('/notifications')}
+            onClick={() => navigate('/support')}
             className="w-12 h-12 rounded-2xl bg-white-5 border-white-10 flex items-center justify-center text-primary relative shadow-black-40 active:scale-90 transition-all"
           >
-            <Bell size={24} />
-            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+            <Headset size={24} />
+            {unresolvedCount > 0 && <span className="notification-badge">{unresolvedCount}</span>}
           </button>
         </div>
       </div>

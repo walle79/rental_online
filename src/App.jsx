@@ -4,17 +4,18 @@ import { db } from './firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { 
   LayoutDashboard, Users, ReceiptText, 
-  BarChart3, Plus, Search, UserPlus, UserCircle, Bell
+  BarChart3, Plus, Search, UserPlus, UserCircle, Headset
 } from 'lucide-react';
 import KaitoTenants from './pages/KaitoTenants';
 import Billing from './pages/Billing';
 import Reports from './pages/Reports';
 import Dashboard from './pages/Dashboard';
-import Notifications from './pages/Notifications';
+import Support from './pages/Support';
 import MemberDashboard from './pages/MemberDashboard';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import TenantModal from './components/TenantModal';
+import SupportModal from './components/SupportModal';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -52,16 +53,14 @@ const AppContent = () => {
   });
   const [tenants, setTenants] = useState([]);
   const [bills, setBills] = useState([]);
-  const [notifications, setNotifications] = useState([]);
+  const [supportRequests, setSupportRequests] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
-  const handleMarkNotificationsRead = async () => {
+  const handleUpdateSupportRequest = async (requestId, updatedData) => {
     try {
-      const unreadNotifs = notifications.filter(n => !n.isRead);
-      for (const n of unreadNotifs) {
-        await updateDoc(doc(db, 'notifications', n.id.toString()), { isRead: true });
-      }
-    } catch(err) { console.error('Error updating notifications:', err); }
+      await updateDoc(doc(db, 'support_requests', requestId.toString()), updatedData);
+    } catch(err) { console.error('Error updating support request:', err); }
   };
 
   const handleLogin = (userData) => {
@@ -88,17 +87,17 @@ const AppContent = () => {
       setBills(billsData);
     });
 
-    const unsubNotifications = onSnapshot(collection(db, 'notifications'), (snapshot) => {
-      const notifsData = [];
-      snapshot.forEach(doc => notifsData.push({ id: doc.id, ...doc.data() }));
-      notifsData.sort((a, b) => b.id - a.id);
-      setNotifications(notifsData);
+    const unsubSupport = onSnapshot(collection(db, 'support_requests'), (snapshot) => {
+      const supportData = [];
+      snapshot.forEach(doc => supportData.push({ id: doc.id, ...doc.data() }));
+      supportData.sort((a, b) => b.id - a.id);
+      setSupportRequests(supportData);
     });
 
     return () => {
       unsubTenants();
       unsubBills();
-      unsubNotifications();
+      unsubSupport();
     };
   }, []);
 
@@ -120,6 +119,10 @@ const AppContent = () => {
 
   const handleUpdateBill = async (billId, updatedData) => {
     try { await updateDoc(doc(db, 'bills', billId.toString()), updatedData); } catch(err) { console.error('Error updating bill:', err); }
+  };
+
+  const handleAddSupportRequest = async (request) => {
+    try { await setDoc(doc(db, 'support_requests', request.id.toString()), request); } catch(err) { console.error('Error adding support request:', err); }
   };
 
   const handleRestoreData = async (newTenants, newBills) => {
@@ -146,8 +149,8 @@ const AppContent = () => {
           <Routes>
             {user.role === 'admin' ? (
               <>
-                <Route path="/" element={<Dashboard tenants={tenants} bills={bills} notifications={notifications} />} />
-                <Route path="/notifications" element={<Notifications notifications={notifications} onMarkAllAsRead={handleMarkNotificationsRead} />} />
+                <Route path="/" element={<Dashboard tenants={tenants} bills={bills} supportRequests={supportRequests} />} />
+                <Route path="/support" element={<Support user={user} tenants={tenants} supportRequests={supportRequests} onUpdateStatus={handleUpdateSupportRequest} onAddRequest={handleAddSupportRequest} onOpenSupportModal={() => setIsSupportModalOpen(true)} />} />
                 <Route path="/tenants" element={<KaitoTenants tenants={tenants} onAddTenant={() => setIsModalOpen(true)} onRemoveTenant={handleRemoveTenant} onUpdateTenant={handleUpdateTenant} />} />
                 <Route path="/billing" element={<Billing tenants={tenants} bills={bills} onAddBill={handleAddBill} onUpdateBill={handleUpdateBill} />} />
                 <Route path="/reports" element={<Reports bills={bills} />} />
@@ -155,8 +158,8 @@ const AppContent = () => {
               </>
             ) : (
               <>
-                <Route path="/" element={<MemberDashboard user={user} tenants={tenants} bills={bills} notifications={notifications} />} />
-                <Route path="/notifications" element={<Notifications notifications={notifications} onMarkAllAsRead={handleMarkNotificationsRead} />} />
+                <Route path="/" element={<MemberDashboard user={user} tenants={tenants} bills={bills} supportRequests={supportRequests} />} />
+                <Route path="/support" element={<Support user={user} tenants={tenants} supportRequests={supportRequests} onAddRequest={handleAddSupportRequest} onOpenSupportModal={() => setIsSupportModalOpen(true)} />} />
                 <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} />} />
               </>
             )}
@@ -179,7 +182,7 @@ const AppContent = () => {
             </>
           ) : (
             <>
-              <NavItem to="/notifications" icon={Bell} label="Tin nhắn" />
+              <NavItem to="/support" icon={Headset} label="Hỗ trợ" />
             </>
           )}
         </nav>
@@ -188,6 +191,14 @@ const AppContent = () => {
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
           onSave={handleAddTenant} 
+        />
+
+        <SupportModal
+          isOpen={isSupportModalOpen}
+          onClose={() => setIsSupportModalOpen(false)}
+          onSave={handleAddSupportRequest}
+          user={user}
+          tenants={tenants}
         />
       </div>
     </div>

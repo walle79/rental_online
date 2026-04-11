@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { MapPin, Bell, User, Receipt, Zap, Droplet, Clock, CheckCircle2, AlertCircle, UserCircle } from 'lucide-react';
+import { MapPin, Headset, User, Receipt, Zap, Droplet, Clock, CheckCircle2, AlertCircle, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const MemberDashboard = ({ user, tenants, bills, notifications }) => {
+const MemberDashboard = ({ user, tenants, bills, supportRequests = [] }) => {
   const navigate = useNavigate();
   const tenant = tenants.find(t => t.room === user.room);
   const myBills = bills.filter(b => b.tenantId === tenant?.id || b.room === user.room);
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unresolvedCount = supportRequests.filter(r => r.room === user.room && r.status !== 'resolved').length;
 
   const calculateDuration = (startDateStr) => {
     if (!startDateStr) return 'N/A';
@@ -38,11 +38,11 @@ const MemberDashboard = ({ user, tenants, bills, notifications }) => {
               <UserCircle size={24} />
             </button>
             <button 
-              onClick={() => navigate('/notifications')}
+              onClick={() => navigate('/support')}
               className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl text-primary transition-all shadow-lg shadow-black/40 relative active:scale-95 border border-white/10"
             >
-              <Bell size={24} />
-              {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+              <Headset size={24} />
+              {unresolvedCount > 0 && <span className="notification-badge">{unresolvedCount}</span>}
             </button>
           </div>
         </div>
