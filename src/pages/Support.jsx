@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { 
   Headset, ChevronLeft, Plus, 
   CheckCircle2, AlertCircle, 
-  X, User, Home, Calendar, MessageSquare
+  X, User, Home, Calendar, MessageSquarePlus
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -75,7 +75,7 @@ const SupportDetailModal = ({ request, onClose, onUpdateStatus, userRole }) => {
         <div style={{ marginBottom: '32px' }}>
           <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '24px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#f97316' }}>
-              <MessageSquare size={16} />
+              <MessageSquarePlus size={16} />
               <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mô tả sự cố</span>
             </div>
             <p style={{ color: 'white', fontSize: '15px', lineHeight: '1.6', margin: 0, whiteSpace: 'pre-wrap' }}>
@@ -154,10 +154,9 @@ const Support = ({ user, tenants = [], supportRequests = [], onUpdateStatus, onA
         </div>
         <button 
           onClick={onOpenSupportModal}
-          className="w-12 h-12 flex items-center justify-center rounded-2xl text-white shadow-xl shadow-primary/40 transition-all active:scale-90 border border-white/10"
-          style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' }}
+          className="w-12 h-12 rounded-2xl bg-white-5 border-white-10 flex items-center justify-center text-primary shadow-black-40 active:scale-90 transition-all"
         >
-          <Plus size={24} strokeWidth={3} />
+          <MessageSquarePlus size={24} />
         </button>
       </header>
 
