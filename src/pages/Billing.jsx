@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Droplet, Zap, Receipt, History,
-  ChevronRight, Camera, CheckCircle2, AlertCircle, Trash2,
+  ChevronRight, CheckCircle2, AlertCircle, Trash2,
   ChevronDown, Search, X, Edit3, Save, Building2, Calendar,
   User, DollarSign, ArrowLeft, Filter
 } from 'lucide-react';
@@ -250,6 +250,10 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     water: '',
     date: new Date().toISOString().split('T')[0]
   });
+  const [selectedBillingMonth, setSelectedBillingMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [extraServices, setExtraServices] = useState([]);
 
   const [configPrices, setConfigPrices] = useState({
@@ -361,13 +365,15 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
     const total = roomCost + elecCost + waterCost + extraServicesTotal;
 
+    const [selYear, selMonth] = selectedBillingMonth.split('-').map(Number);
+
     const newBill = {
       id: Date.now(),
       tenantId: selectedTenant.id,
       tenantName: selectedTenant.name,
       room: selectedTenant.room,
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
+      month: selMonth,
+      year: selYear,
       electricity: { current: elecUsage, price: configPrices.electricity, cost: elecCost },
       water: { current: waterUsage, price: configPrices.water, cost: waterCost },
       extraServices: validExtraServices,
@@ -380,6 +386,8 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     setSelectedTenant(null);
     setCurrentReadings({ electricity: '', water: '', date: new Date().toISOString().split('T')[0] });
     setExtraServices([]);
+    const now = new Date();
+    setSelectedBillingMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   };
 
   const handleUpdateStatus = (billId, newStatus) => {
@@ -647,15 +655,49 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
       ) : (
         <div className="animate-slide-up">
           <button
-            onClick={() => { setSelectedTenant(null); setExtraServices([]); }}
+            onClick={() => { 
+              setSelectedTenant(null); 
+              setExtraServices([]); 
+              const now = new Date();
+              setSelectedBillingMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+            }}
             className="text-primary text-xs font-bold mb-6 flex items-center gap-1 uppercase tracking-widest"
           >
             ← Hủy chọn phòng
           </button>
 
           <div className="glass-card !mb-0 p-6">
-            <h2 className="text-xl font-bold mb-1">Tính tiền Phòng {selectedTenant.room}</h2>
-            <p className="text-muted text-sm mb-4">{selectedTenant.name}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+              <div style={{ flex: 1, minWidth: 0, marginRight: '8px' }}>
+                <h2 className="text-[18px] font-bold mb-1" style={{ whiteSpace: 'nowrap' }}>Phòng {selectedTenant.room}</h2>
+                <p className="text-muted text-sm" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedTenant.name}</p>
+              </div>
+              <select
+                value={selectedBillingMonth}
+                onChange={e => setSelectedBillingMonth(e.target.value)}
+                style={{
+                  background: 'rgba(249,115,22,0.1)',
+                  border: '1px solid rgba(249,115,22,0.3)',
+                  borderRadius: '10px',
+                  color: '#f97316',
+                  fontSize: '12px',
+                  fontWeight: 900,
+                  padding: '6px 10px',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const d = new Date();
+                  d.setMonth(d.getMonth() - i);
+                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                  const y = d.getFullYear();
+                  const val = `${y}-${m}`;
+                  return <option key={val} value={val}>Th{parseInt(m)}/{y}</option>;
+                })}
+              </select>
+            </div>
 
             <div className="mb-6 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
               <span className="text-xs font-bold text-muted uppercase tracking-widest">Giá phòng áp dụng</span>
@@ -692,17 +734,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-muted flex items-center gap-1 uppercase">
-                  <Camera size={10} /> Ảnh chụp chứng minh
-                </label>
-                <div className="border border-white/10 rounded-2xl p-6 text-center bg-white/5 flex flex-col items-center justify-center gap-2">
-                  <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-muted">
-                    <Camera size={20} />
-                  </div>
-                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Bấm để tải ảnh</p>
-                </div>
-              </div>
+
 
               {(() => {
                 const previewElecUsage = Number(currentReadings.electricity) || 0;
