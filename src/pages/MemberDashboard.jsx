@@ -12,6 +12,11 @@ const MemberDashboard = ({ user, tenants, bills, supportRequests = [] }) => {
     if (!startDateStr) return 'N/A';
     const start = new Date(startDateStr);
     const end = new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    if (start > end) {
+      return '0 ngày';
+    }
     let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
     let days = end.getDate() - start.getDate();
     if (days < 0) {
