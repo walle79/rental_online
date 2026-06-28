@@ -266,6 +266,16 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   const [isSavingPrices, setIsSavingPrices] = useState(false);
   const [draftPrices, setDraftPrices] = useState({ electricity: '', water: '', room: '' });
 
+  const [customRoomPrice, setCustomRoomPrice] = useState('');
+
+  useEffect(() => {
+    if (selectedTenant) {
+      setCustomRoomPrice(selectedTenant.roomPrice ? selectedTenant.roomPrice.toString() : configPrices.room.toString());
+    } else {
+      setCustomRoomPrice('');
+    }
+  }, [selectedTenant, configPrices.room]);
+
   useEffect(() => {
     if (showPriceSettings) {
       setDraftPrices({
@@ -356,7 +366,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
     const elecCost = elecUsage * configPrices.electricity;
     const waterCost = waterUsage * configPrices.water;
-    const roomCost = selectedTenant.roomPrice ? Number(selectedTenant.roomPrice) : configPrices.room;
+    const roomCost = Number(customRoomPrice) || 0;
     
     const validExtraServices = extraServices
       .filter(s => s.name.trim() !== '' && (Number(s.cost) || 0) > 0)
@@ -701,9 +711,31 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
             <div className="mb-6 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
               <span className="text-xs font-bold text-muted uppercase tracking-widest">Giá phòng áp dụng</span>
-              <span className="text-sm font-black text-primary">
-                {selectedTenant.roomPrice ? Number(selectedTenant.roomPrice).toLocaleString() + 'đ' : configPrices.room.toLocaleString() + 'đ (Mặc định)'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="text"
+                  required
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1.5px solid #f97316',
+                    borderRadius: '10px',
+                    color: '#f97316',
+                    padding: '6px 12px',
+                    fontSize: '14px',
+                    fontWeight: 900,
+                    width: '130px',
+                    textAlign: 'right',
+                    outline: 'none'
+                  }}
+                  placeholder="0"
+                  value={customRoomPrice ? Number(customRoomPrice).toLocaleString() : ''}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    setCustomRoomPrice(rawValue);
+                  }}
+                />
+                <span className="text-sm font-black text-primary">đ</span>
+              </div>
             </div>
 
             <form onSubmit={handleCalculate} className="space-y-6">
@@ -744,7 +776,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                 if (previewElecUsage > 0 || previewWaterUsage > 0 || extraServices.length > 0) {
                   const previewElecCost = previewElecUsage * configPrices.electricity;
                   const previewWaterCost = previewWaterUsage * configPrices.water;
-                  const previewRoomCost = selectedTenant.roomPrice ? Number(selectedTenant.roomPrice) : configPrices.room;
+                  const previewRoomCost = Number(customRoomPrice) || 0;
                   const previewExtraCost = previewExtraServices.reduce((sum, s) => sum + Number(s.cost), 0);
                   const previewTotal = previewRoomCost + previewElecCost + previewWaterCost + previewExtraCost;
 
