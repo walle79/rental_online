@@ -8,7 +8,7 @@ import { Home, User, MapPin, Clock, Headset, UserCircle } from 'lucide-react';
 const Dashboard = ({ tenants = [], bills = [], supportRequests = [] }) => {
   const navigate = useNavigate();
   const unresolvedCount = supportRequests.filter(r => r.status !== 'resolved').length;
-  const TOTAL_ROOMS = 20;
+  const TOTAL_ROOMS = 18;
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -28,8 +28,8 @@ const Dashboard = ({ tenants = [], bills = [], supportRequests = [] }) => {
   // Floor configuration
   const floors = [
     { id: 1, label: 'Tầng 1', rooms: ['101', '102', '103', '104', '105', '106'] },
-    { id: 2, label: 'Tầng 2', rooms: ['201', '202', '203', '204', '205', '206', '207'] },
-    { id: 3, label: 'Tầng 3', rooms: ['301', '302', '303', '304', '305', '306', '307'] }
+    { id: 2, label: 'Tầng 2', rooms: ['201', '202', '203', '204', '205', '206'] }, // Removed 207 till now, will add back later
+    { id: 3, label: 'Tầng 3', rooms: ['301', '302', '303', '304', '305', '306'] }  // Removed 307 till now, will add back later
   ];
 
   // Room Status Data
@@ -121,7 +121,7 @@ const Dashboard = ({ tenants = [], bills = [], supportRequests = [] }) => {
 
         {/* Interactive Room Map */}
         <div className="glass-card">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Sơ đồ phòng (20 phòng)</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Sơ đồ phòng ({TOTAL_ROOMS} phòng)</h3>
           <div className="flex gap-6 mb-6">
             <h3 className="text-xs font-bold uppercase tracking-widest text-success">Đang thuê ({occupiedRoomsCount})</h3>
             <h3 className="text-xs font-bold uppercase tracking-widest text-muted">Trống ({TOTAL_ROOMS - occupiedRoomsCount})</h3>
