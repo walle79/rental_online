@@ -21,8 +21,8 @@ const SupportModal = ({ isOpen, onClose, onSave, user, tenants = [] }) => {
     // Support all rooms if needed, but primarily focus on rooms with tenants/activity
     const allRoomsList = [
       '101', '102', '103', '104', '105', '106',
-      '201', '202', '203', '204', '205', '206', '207',
-      '301', '302', '303', '304', '305', '306', '307'
+      '201', '202', '203', '204', '205', '206', // '207' removed till now
+      '301', '302', '303', '304', '305', '306'  // '307' removed till now
     ];
 
     return allRoomsList.map(roomNum => ({

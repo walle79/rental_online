@@ -40,10 +40,10 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
     
     // Tầng 1: 101-106
     if (roomNum >= 101 && roomNum <= 106) return true;
-    // Tầng 2: 201-207
-    if (roomNum >= 201 && roomNum <= 207) return true;
-    // Tầng 3: 301-307
-    if (roomNum >= 301 && roomNum <= 307) return true;
+    // Tầng 2: 201-206 (207 tạm thời bỏ)
+    if (roomNum >= 201 && roomNum <= 206) return true;
+    // Tầng 3: 301-306 (307 tạm thời bỏ)
+    if (roomNum >= 301 && roomNum <= 306) return true;
     
     return false;
   };

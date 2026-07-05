@@ -6,7 +6,7 @@ import {
   Droplet, Zap, Receipt, History,
   ChevronRight, CheckCircle2, AlertCircle, Trash2,
   ChevronDown, Search, X, Edit3, Save, Building2, Calendar,
-  User, DollarSign, ArrowLeft, Filter
+  User, DollarSign, ArrowLeft, Filter, Share2
 } from 'lucide-react';
 
 // ─── Invoice Detail Modal (Portal) ─────────────────────────────────────────────
@@ -93,6 +93,56 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
     const newExtraServices = (localBill.extraServices || []).map(s => s.id === id ? { ...s, cost: newCost } : s);
     const newExtraTotal = newExtraServices.reduce((sum, s) => sum + s.cost, 0);
     updateAndSave({ ...localBill, extraServices: newExtraServices, total: rentCost + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + newExtraTotal });
+  };
+
+  const handleShareBill = async () => {
+    const rentVal = rentCost;
+    const elecKwh = localBill.electricity?.current ?? 0;
+    const elecCost = localBill.electricity?.cost || 0;
+    const waterM3 = localBill.water?.current ?? 0;
+    const waterCost = localBill.water?.cost || 0;
+    
+    let extraText = '';
+    if (localBill.extraServices && localBill.extraServices.length > 0) {
+      extraText = localBill.extraServices
+        .map(s => `• ${s.name}: ${Number(s.cost).toLocaleString()}đ`)
+        .join('\n');
+    }
+
+    const message = `📋 TRỌ BNB - HÓA ĐƠN TIỀN PHÒNG
+---------------------------------
+📍 Phòng: ${localBill.room}
+👤 Khách thuê: ${localBill.tenantName}
+📅 Kỳ hóa đơn: Tháng ${localBill.month}/${localBill.year}
+---------------------------------
+💵 Tiền phòng: ${Number(rentVal).toLocaleString()}đ
+⚡ Điện: ${elecKwh} kWh × ${elecPrice.toLocaleString()}đ = ${Number(elecCost).toLocaleString()}đ
+💧 Nước: ${waterM3} m³ × ${waterPrice.toLocaleString()}đ = ${Number(waterCost).toLocaleString()}đ
+${extraText ? extraText + '\n---------------------------------' : ''}
+💰 TỔNG CỘNG: ${Number(localBill.total).toLocaleString()}đ
+---------------------------------
+Vui lòng thanh toán tiền phòng sớm nhé. Cảm ơn bạn! 😊`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Hóa đơn phòng ${localBill.room}`,
+          text: message
+        });
+        return;
+      } catch (err) {
+        console.log('Web Share failed or cancelled:', err);
+      }
+    }
+
+    // Fallback: Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(message);
+      alert('Đã sao chép hóa đơn vào bộ nhớ tạm! Bạn có thể dán (Paste) trực tiếp vào Zalo để gửi cho khách thuê.');
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      alert('Không thể tự động sao chép. Vui lòng copy thủ công.');
+    }
   };
 
   const handleToggleStatus = () => {
@@ -206,6 +256,21 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
             Đánh dấu lại là chưa thu
           </button>
         )}
+        <button
+          onClick={handleShareBill}
+          style={{
+            width: '100%', padding: '16px', borderRadius: '20px',
+            background: 'linear-gradient(135deg, #0284c7, #0ea5e9)',
+            border: 'none', color: 'white', fontWeight: 900,
+            fontSize: '14px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            boxShadow: '0 10px 25px -5px rgba(14,165,233,0.3)',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Share2 size={16} />
+          Chia sẻ hóa đơn (Zalo/Share)
+        </button>
         <button
           onClick={onClose}
           style={{
@@ -393,6 +458,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     };
 
     onAddBill(newBill);
+    setViewingBill(newBill);
     setSelectedTenant(null);
     setCurrentReadings({ electricity: '', water: '', date: new Date().toISOString().split('T')[0] });
     setExtraServices([]);
