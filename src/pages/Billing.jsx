@@ -484,11 +484,13 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   }, [bills]);
 
   const filteredBills = useMemo(() => {
-    return bills.filter(b => {
-      const monthMatch = !filterMonth || `${b.year}-${String(b.month).padStart(2, '0')}` === filterMonth;
-      const statusMatch = filterStatus === 'all' || b.status === filterStatus;
-      return monthMatch && statusMatch;
-    });
+    return bills
+      .filter(b => {
+        const monthMatch = !filterMonth || `${b.year}-${String(b.month).padStart(2, '0')}` === filterMonth;
+        const statusMatch = filterStatus === 'all' || b.status === filterStatus;
+        return monthMatch && statusMatch;
+      })
+      .sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true }));
   }, [bills, filterMonth, filterStatus]);
 
   return (
