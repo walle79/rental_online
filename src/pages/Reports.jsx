@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, Cell, PieChart, Pie
 } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Receipt, CheckCircle2, Check, X, Edit3, ChevronLeft, ChevronRight, Calendar, Zap, Droplet } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, Receipt, CheckCircle2, Check, X, Edit3, ChevronLeft, ChevronRight, Calendar, Zap, Droplet, Wifi } from 'lucide-react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from 'firebase/firestore';
 
@@ -108,12 +108,21 @@ const Reports = ({ bills = [] }) => {
   }, [paidBills, selectedYear]);
 
   // ── Stats for selected period ──────────────────────────────────────────────
-  const { growthPct, thisMonthRevenue, thisMonthElec, thisMonthWater, prevM, prevY } = useMemo(() => {
+  const { growthPct, thisMonthRevenue, thisMonthElec, thisMonthWater, thisMonthTrashWifi, prevM, prevY } = useMemo(() => {
     const monthBills = paidBills.filter(b => b.year === selectedYear && b.month === selectedMonth);
     
     const thisMonth = monthBills.reduce((sum, b) => sum + b.total, 0);
-    const thisMonthElecTotal = monthBills.reduce((sum, b) => sum + (b.electricity?.cost || 0), 0);
-    const thisMonthWaterTotal = monthBills.reduce((sum, b) => sum + (b.water?.cost || 0), 0);
+
+    // Chi phí điện/nước/rác+wifi tiêu thụ trong tháng X được ghi nhận trong bill tháng X+1
+    // Ví dụ: bill tháng 8 chứa chi phí tiêu thụ điện/nước của tháng 7
+    // Nên muốn xem chi phí tháng 8 → lấy từ bill tháng 9
+    const nextM = selectedMonth === 12 ? 1 : selectedMonth + 1;
+    const nextY = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
+    const nextMonthBills = paidBills.filter(b => b.year === nextY && b.month === nextM);
+
+    const thisMonthElecTotal = nextMonthBills.reduce((sum, b) => sum + (b.electricity?.cost || 0), 0);
+    const thisMonthWaterTotal = nextMonthBills.reduce((sum, b) => sum + (b.water?.cost || 0), 0);
+    const thisMonthTrashWifiTotal = nextMonthBills.reduce((sum, b) => sum + (b.trashWifi || 0), 0);
 
     const pm = selectedMonth === 1 ? 12 : selectedMonth - 1;
     const py = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
@@ -128,6 +137,7 @@ const Reports = ({ bills = [] }) => {
       thisMonthRevenue: thisMonth, 
       thisMonthElec: thisMonthElecTotal, 
       thisMonthWater: thisMonthWaterTotal, 
+      thisMonthTrashWifi: thisMonthTrashWifiTotal,
       prevM: pm, 
       prevY: py 
     };
@@ -294,6 +304,14 @@ const Reports = ({ bills = [] }) => {
               <span style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tổng nước thu</span>
             </div>
             <p style={{ fontSize: '15px', fontWeight: 900, color: '#f8fafc' }}>{thisMonthWater.toLocaleString()}đ</p>
+          </div>
+          <div style={{ gridColumn: 'span 2', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)', margin: '2px 0' }} />
+          <div className="flex flex-col gap-1" style={{ gridColumn: 'span 2' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Wifi size={12} style={{ color: '#a78bfa' }} />
+              <span style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tổng Rác + Wifi</span>
+            </div>
+            <p style={{ fontSize: '15px', fontWeight: 900, color: '#f8fafc' }}>{thisMonthTrashWifi.toLocaleString()}đ</p>
           </div>
         </div>
 

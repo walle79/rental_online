@@ -68,7 +68,8 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
 
   const isPaid = localBill.status === 'paid';
   const extraServicesTotal = (localBill.extraServices || []).reduce((sum, s) => sum + s.cost, 0);
-  const rentCost = localBill.total - (localBill.electricity?.cost || 0) - (localBill.water?.cost || 0) - extraServicesTotal;
+  const trashWifiCost = localBill.trashWifi ?? 0;
+  const rentCost = localBill.total - (localBill.electricity?.cost || 0) - (localBill.water?.cost || 0) - trashWifiCost - extraServicesTotal;
 
   const updateAndSave = (updated) => {
     setLocalBill(updated);
@@ -76,23 +77,27 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
   };
 
   const handleRentChange = (newRent) => {
-    updateAndSave({ ...localBill, total: newRent + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + extraServicesTotal });
+    updateAndSave({ ...localBill, total: newRent + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + trashWifiCost + extraServicesTotal });
   };
 
   const handleElecChange = (newKwh) => {
     const newCost = newKwh * elecPrice;
-    updateAndSave({ ...localBill, electricity: { current: newKwh, price: elecPrice, cost: newCost }, total: rentCost + newCost + (localBill.water?.cost || 0) + extraServicesTotal });
+    updateAndSave({ ...localBill, electricity: { current: newKwh, price: elecPrice, cost: newCost }, total: rentCost + newCost + (localBill.water?.cost || 0) + trashWifiCost + extraServicesTotal });
   };
 
   const handleWaterChange = (newM3) => {
     const newCost = newM3 * waterPrice;
-    updateAndSave({ ...localBill, water: { current: newM3, price: waterPrice, cost: newCost }, total: rentCost + (localBill.electricity?.cost || 0) + newCost + extraServicesTotal });
+    updateAndSave({ ...localBill, water: { current: newM3, price: waterPrice, cost: newCost }, total: rentCost + (localBill.electricity?.cost || 0) + newCost + trashWifiCost + extraServicesTotal });
+  };
+
+  const handleTrashWifiChange = (newTrashWifi) => {
+    updateAndSave({ ...localBill, trashWifi: newTrashWifi, total: rentCost + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + newTrashWifi + extraServicesTotal });
   };
 
   const handleExtraServiceChange = (id, newCost) => {
     const newExtraServices = (localBill.extraServices || []).map(s => s.id === id ? { ...s, cost: newCost } : s);
     const newExtraTotal = newExtraServices.reduce((sum, s) => sum + s.cost, 0);
-    updateAndSave({ ...localBill, extraServices: newExtraServices, total: rentCost + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + newExtraTotal });
+    updateAndSave({ ...localBill, extraServices: newExtraServices, total: rentCost + (localBill.electricity?.cost || 0) + (localBill.water?.cost || 0) + trashWifiCost + newExtraTotal });
   };
 
   const handleShareBill = async () => {
@@ -101,6 +106,7 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
     const elecCost = localBill.electricity?.cost || 0;
     const waterM3 = localBill.water?.current ?? 0;
     const waterCost = localBill.water?.cost || 0;
+    const trashWifiVal = localBill.trashWifi ?? 0;
     
     let extraText = '';
     if (localBill.extraServices && localBill.extraServices.length > 0) {
@@ -118,6 +124,7 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
 💵 Tiền phòng: ${Number(rentVal).toLocaleString()}đ
 ⚡ Điện: ${elecKwh} kWh × ${elecPrice.toLocaleString()}đ = ${Number(elecCost).toLocaleString()}đ
 💧 Nước: ${waterM3} m³ × ${waterPrice.toLocaleString()}đ = ${Number(waterCost).toLocaleString()}đ
+🌐 Rác + Wifi: ${Number(trashWifiVal).toLocaleString()}đ
 ${extraText ? extraText + '\n---------------------------------' : ''}
 💰 TỔNG CỘNG: ${Number(localBill.total).toLocaleString()}đ
 ---------------------------------
@@ -201,6 +208,7 @@ Vui lòng thanh toán tiền phòng sớm nhé. Cảm ơn bạn! 😊`;
         <EditableRow label="Tiền phòng" value={rentCost} onSave={handleRentChange} />
         <EditableRow label="Điện" value={localBill.electricity?.current ?? 0} unit="kWh" onSave={handleElecChange} />
         <EditableRow label="Nước" value={localBill.water?.current ?? 0} unit="m³" onSave={handleWaterChange} />
+        <EditableRow label="Rác + Wifi" value={trashWifiCost} onSave={handleTrashWifiChange} />
 
         {(localBill.extraServices || []).map(service => (
           <EditableRow 
@@ -219,6 +227,10 @@ Vui lòng thanh toán tiền phòng sớm nhé. Cảm ơn bạn! 😊`;
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
             <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí nước ({localBill.water?.current ?? 0} × {waterPrice.toLocaleString()}đ)</span>
             <span style={{ fontSize: '12px', color: '#64748b' }}>{(localBill.water?.cost || 0).toLocaleString()}đ</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+            <span style={{ fontSize: '12px', color: '#475569' }}>→ Cố định Rác + Wifi</span>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>{trashWifiCost.toLocaleString()}đ</span>
           </div>
         </div>
 
@@ -324,29 +336,34 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   const [configPrices, setConfigPrices] = useState({
     electricity: 5000,
     water: 15000,
-    room: 3000000
+    room: 3000000,
+    trashWifi: 150000
   });
   const [loadingPrices, setLoadingPrices] = useState(true);
   const [showPriceSettings, setShowPriceSettings] = useState(false);
   const [isSavingPrices, setIsSavingPrices] = useState(false);
-  const [draftPrices, setDraftPrices] = useState({ electricity: '', water: '', room: '' });
+  const [draftPrices, setDraftPrices] = useState({ electricity: '', water: '', room: '', trashWifi: '' });
 
   const [customRoomPrice, setCustomRoomPrice] = useState('');
+  const [customTrashWifi, setCustomTrashWifi] = useState('');
 
   useEffect(() => {
     if (selectedTenant) {
       setCustomRoomPrice(selectedTenant.roomPrice ? selectedTenant.roomPrice.toString() : configPrices.room.toString());
+      setCustomTrashWifi(configPrices.trashWifi ? configPrices.trashWifi.toString() : '150000');
     } else {
       setCustomRoomPrice('');
+      setCustomTrashWifi('');
     }
-  }, [selectedTenant, configPrices.room]);
+  }, [selectedTenant, configPrices.room, configPrices.trashWifi]);
 
   useEffect(() => {
     if (showPriceSettings) {
       setDraftPrices({
         electricity: configPrices.electricity?.toString() || '',
         water: configPrices.water?.toString() || '',
-        room: configPrices.room?.toString() || ''
+        room: configPrices.room?.toString() || '',
+        trashWifi: configPrices.trashWifi?.toString() || ''
       });
     }
   }, [showPriceSettings, configPrices]);
@@ -385,7 +402,8 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
       const newConfig = {
         electricity: Number(draftPrices.electricity) || 0,
         water: Number(draftPrices.water) || 0,
-        room: Number(draftPrices.room) || 0
+        room: Number(draftPrices.room) || 0,
+        trashWifi: Number(draftPrices.trashWifi) || 0
       };
       await setDoc(doc(db, 'config', 'prices'), newConfig);
       setConfigPrices(newConfig);
@@ -432,13 +450,14 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     const elecCost = elecUsage * configPrices.electricity;
     const waterCost = waterUsage * configPrices.water;
     const roomCost = Number(customRoomPrice) || 0;
+    const trashWifiCost = Number(customTrashWifi) || 0;
     
     const validExtraServices = extraServices
       .filter(s => s.name.trim() !== '' && (Number(s.cost) || 0) > 0)
       .map(s => ({ ...s, cost: Number(s.cost) }));
     const extraServicesTotal = validExtraServices.reduce((sum, s) => sum + s.cost, 0);
 
-    const total = roomCost + elecCost + waterCost + extraServicesTotal;
+    const total = roomCost + elecCost + waterCost + trashWifiCost + extraServicesTotal;
 
     const [selYear, selMonth] = selectedBillingMonth.split('-').map(Number);
 
@@ -451,6 +470,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
       year: selYear,
       electricity: { current: elecUsage, price: configPrices.electricity, cost: elecCost },
       water: { current: waterUsage, price: configPrices.water, cost: waterCost },
+      trashWifi: trashWifiCost,
       extraServices: validExtraServices,
       total: total,
       status: 'pending',
@@ -532,6 +552,15 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     <input
                       type="text" value={formatPriceDisplay(draftPrices.water)}
                       onChange={e => handleDraftChange('water', e.target.value)}
+                      placeholder="0"
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Rác + Wifi (đ/tháng)</label>
+                    <input
+                      type="text" value={formatPriceDisplay(draftPrices.trashWifi)}
+                      onChange={e => handleDraftChange('trashWifi', e.target.value)}
                       placeholder="0"
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
                     />
@@ -777,7 +806,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
               </select>
             </div>
 
-            <div className="mb-6 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
+            <div className="mb-4 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
               <span className="text-xs font-bold text-muted uppercase tracking-widest">Giá phòng áp dụng</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
@@ -800,6 +829,35 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                   onChange={(e) => {
                     const rawValue = e.target.value.replace(/\D/g, '');
                     setCustomRoomPrice(rawValue);
+                  }}
+                />
+                <span className="text-sm font-black text-primary">đ</span>
+              </div>
+            </div>
+
+            <div className="mb-6 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
+              <span className="text-xs font-bold text-muted uppercase tracking-widest">Phí Rác + Wifi</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="text"
+                  required
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1.5px solid #f97316',
+                    borderRadius: '10px',
+                    color: '#f97316',
+                    padding: '6px 12px',
+                    fontSize: '14px',
+                    fontWeight: 900,
+                    width: '130px',
+                    textAlign: 'right',
+                    outline: 'none'
+                  }}
+                  placeholder="0"
+                  value={customTrashWifi ? Number(customTrashWifi).toLocaleString() : ''}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    setCustomTrashWifi(rawValue);
                   }}
                 />
                 <span className="text-sm font-black text-primary">đ</span>
@@ -840,13 +898,14 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                 const previewElecUsage = Number(currentReadings.electricity) || 0;
                 const previewWaterUsage = Number(currentReadings.water) || 0;
                 const previewExtraServices = extraServices.filter(s => s.name.trim() !== '' && (Number(s.cost) || 0) > 0);
+                const previewTrashWifi = Number(customTrashWifi) || 0;
                 
-                if (previewElecUsage > 0 || previewWaterUsage > 0 || extraServices.length > 0) {
+                if (previewElecUsage > 0 || previewWaterUsage > 0 || extraServices.length > 0 || previewTrashWifi > 0) {
                   const previewElecCost = previewElecUsage * configPrices.electricity;
                   const previewWaterCost = previewWaterUsage * configPrices.water;
                   const previewRoomCost = Number(customRoomPrice) || 0;
                   const previewExtraCost = previewExtraServices.reduce((sum, s) => sum + Number(s.cost), 0);
-                  const previewTotal = previewRoomCost + previewElecCost + previewWaterCost + previewExtraCost;
+                  const previewTotal = previewRoomCost + previewElecCost + previewWaterCost + previewTrashWifi + previewExtraCost;
 
                   return (
                     <div style={{ marginTop: '24px', marginBottom: '8px' }}>
@@ -861,6 +920,10 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                       <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }}>
                         <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>Nước {previewWaterUsage > 0 && `(${previewWaterUsage} m³)`}</span>
                         <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{previewWaterCost.toLocaleString()}đ</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>Rác + Wifi</span>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{previewTrashWifi.toLocaleString()}đ</span>
                       </div>
 
                       {extraServices.map((service, index) => (
@@ -956,6 +1019,10 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
                           <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí nước ({previewWaterUsage} × {configPrices.water.toLocaleString()}đ)</span>
                           <span style={{ fontSize: '12px', color: '#64748b' }}>{previewWaterCost.toLocaleString()}đ</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                          <span style={{ fontSize: '12px', color: '#475569' }}>→ Cố định Rác + Wifi</span>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>{previewTrashWifi.toLocaleString()}đ</span>
                         </div>
                       </div>
 
