@@ -923,8 +923,8 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
               </select>
             </div>
 
-            <div className="mb-4 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
-              <span className="text-xs font-bold text-muted uppercase tracking-widest">Giá phòng áp dụng</span>
+            <div className="mb-3 rounded-2xl bg-white-5 border border-white-10 flex justify-between items-center" style={{ padding: '12px 14px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Giá phòng</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
                   type="text"
@@ -935,12 +935,13 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     border: '1.5px solid #f97316',
                     borderRadius: '10px',
                     color: '#f97316',
-                    padding: '6px 12px',
-                    fontSize: '14px',
+                    padding: '8px 12px',
+                    fontSize: '15px',
                     fontWeight: 900,
-                    width: '130px',
+                    width: '135px',
                     textAlign: 'right',
-                    outline: 'none'
+                    outline: 'none',
+                    WebkitAppearance: 'none'
                   }}
                   placeholder="0"
                   value={customRoomPrice ? Number(customRoomPrice).toLocaleString() : ''}
@@ -949,12 +950,12 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     setCustomRoomPrice(rawValue);
                   }}
                 />
-                <span className="text-sm font-black text-primary" style={{ minWidth: '32px' }}>đ</span>
+                <span className="text-sm font-black text-primary">đ</span>
               </div>
             </div>
 
-            <div className="mb-4 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
-              <span className="text-xs font-bold text-muted uppercase tracking-widest">Phí Rác + Wifi</span>
+            <div className="mb-3 rounded-2xl bg-white-5 border border-white-10 flex justify-between items-center" style={{ padding: '12px 14px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Rác + Wifi</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
                   type="text"
@@ -965,12 +966,13 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     border: '1.5px solid #f97316',
                     borderRadius: '10px',
                     color: '#f97316',
-                    padding: '6px 12px',
-                    fontSize: '14px',
+                    padding: '8px 12px',
+                    fontSize: '15px',
                     fontWeight: 900,
-                    width: '130px',
+                    width: '135px',
                     textAlign: 'right',
-                    outline: 'none'
+                    outline: 'none',
+                    WebkitAppearance: 'none'
                   }}
                   placeholder="0"
                   value={customTrashWifi ? Number(customTrashWifi).toLocaleString() : ''}
@@ -979,7 +981,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     setCustomTrashWifi(rawValue);
                   }}
                 />
-                <span className="text-sm font-black text-primary" style={{ minWidth: '32px' }}>đ</span>
+                <span className="text-sm font-black text-primary">đ</span>
               </div>
             </div>
 
@@ -1069,42 +1071,6 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                   />
                 </div>
               </div>
-
-              {/* Note input card */}
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '16px',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <FileText size={13} style={{ color: '#f59e0b' }} />
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Ghi chú (Tùy chọn)
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  placeholder="VD: Hẹn ngày 10 nộp, chậm lương..."
-                  value={billNote}
-                  onChange={e => setBillNote(e.target.value)}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '10px',
-                    color: 'white',
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-
 
               {(() => {
                 const previewElecUsage = Number(currentReadings.electricity) || 0;
@@ -1236,6 +1202,41 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                           <span style={{ fontSize: '12px', color: '#475569' }}>→ Cố định Rác + Wifi</span>
                           <span style={{ fontSize: '12px', color: '#64748b' }}>{previewTrashWifi.toLocaleString()}đ</span>
                         </div>
+                      </div>
+
+                      {/* Note input card - Moved right above Total */}
+                      <div style={{
+                        marginTop: '16px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '16px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <FileText size={13} style={{ color: '#f59e0b' }} />
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Ghi chú (Tùy chọn)
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="VD: Hẹn ngày 10 nộp, chậm lương..."
+                          value={billNote}
+                          onChange={e => setBillNote(e.target.value)}
+                          style={{
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '10px',
+                            color: 'white',
+                            padding: '8px 12px',
+                            fontSize: '13px',
+                            outline: 'none'
+                          }}
+                        />
                       </div>
 
                       <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
