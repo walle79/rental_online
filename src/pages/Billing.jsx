@@ -6,7 +6,7 @@ import {
   Droplet, Zap, Receipt, History,
   ChevronRight, CheckCircle2, AlertCircle, Trash2,
   ChevronDown, Search, X, Edit3, Save, Building2, Calendar,
-  User, DollarSign, ArrowLeft, Filter, Share2
+  User, DollarSign, ArrowLeft, Filter, Share2, FileText
 } from 'lucide-react';
 
 // ─── Invoice Detail Modal (Portal) ─────────────────────────────────────────────
@@ -65,6 +65,8 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
 
   // Local state for live edits (initializes from a guaranteed non-null bill)
   const [localBill, setLocalBill] = useState(bill);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(bill.note || '');
 
   const isPaid = localBill.status === 'paid';
   const extraServicesTotal = (localBill.extraServices || []).reduce((sum, s) => sum + s.cost, 0);
@@ -74,6 +76,11 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
   const updateAndSave = (updated) => {
     setLocalBill(updated);
     onSave(updated);
+  };
+
+  const handleSaveNote = () => {
+    updateAndSave({ ...localBill, note: noteDraft.trim() });
+    setIsEditingNote(false);
   };
 
   const handleRentChange = (newRent) => {
@@ -238,6 +245,59 @@ Vui lòng thanh toán tiền phòng sớm nhé. Cảm ơn bạn! 😊`;
           <span style={{ fontSize: '14px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>TỔNG CỘNG</span>
           <span style={{ fontSize: '26px', fontWeight: 900, color: '#f97316' }}>{localBill.total.toLocaleString()}đ</span>
         </div>
+
+        {/* Note section */}
+        <div style={{ marginTop: '16px', padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FileText size={13} style={{ color: '#f59e0b' }} />
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ghi chú nội bộ</span>
+            </div>
+            {!isEditingNote ? (
+              <button
+                type="button"
+                onClick={() => { setNoteDraft(localBill.note || ''); setIsEditingNote(true); }}
+                style={{ background: 'none', border: 'none', color: '#f97316', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                {localBill.note ? 'Sửa' : '+ Thêm ghi chú'}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveNote}
+                  style={{ background: '#22c55e', border: 'none', borderRadius: '6px', color: 'white', padding: '4px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Lưu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setNoteDraft(localBill.note || ''); setIsEditingNote(false); }}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: '#94a3b8', padding: '4px 10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Hủy
+                </button>
+              </div>
+            )}
+          </div>
+          {isEditingNote ? (
+            <textarea
+              value={noteDraft}
+              onChange={e => setNoteDraft(e.target.value)}
+              placeholder="VD: Khách xin mồng 10 nộp, chậm lương..."
+              rows={2}
+              style={{
+                width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid #f97316',
+                borderRadius: '10px', color: 'white', padding: '8px 10px', fontSize: '13px', outline: 'none', resize: 'none'
+              }}
+              autoFocus
+            />
+          ) : (
+            <p style={{ fontSize: '13px', color: localBill.note ? '#f8fafc' : '#64748b', fontStyle: localBill.note ? 'normal' : 'italic', margin: 0, lineHeight: '1.4' }}>
+              {localBill.note || 'Chưa có ghi chú'}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Actions */}
@@ -332,6 +392,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [extraServices, setExtraServices] = useState([]);
+  const [billNote, setBillNote] = useState('');
 
   const [configPrices, setConfigPrices] = useState({
     electricity: 5000,
@@ -420,9 +481,16 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   const [searchRoom, setSearchRoom] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Filters for history
+  // Filters for history & search
   const [filterMonth, setFilterMonth] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [hasSearched, setHasSearched] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({ month: '', status: 'all' });
+
+  const handleSearchBills = () => {
+    setHasSearched(true);
+    setAppliedFilters({ month: filterMonth, status: filterStatus });
+  };
 
   const roomsData = useMemo(() => {
     const rooms = {};
@@ -472,6 +540,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
       water: { current: waterUsage, price: configPrices.water, cost: waterCost },
       trashWifi: trashWifiCost,
       extraServices: validExtraServices,
+      note: billNote.trim(),
       total: total,
       status: 'pending',
       date: currentReadings.date
@@ -482,6 +551,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     setSelectedTenant(null);
     setCurrentReadings({ electricity: '', water: '', date: new Date().toISOString().split('T')[0] });
     setExtraServices([]);
+    setBillNote('');
     const now = new Date();
     setSelectedBillingMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   };
@@ -504,14 +574,15 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   }, [bills]);
 
   const filteredBills = useMemo(() => {
+    if (!hasSearched) return [];
     return bills
       .filter(b => {
-        const monthMatch = !filterMonth || `${b.year}-${String(b.month).padStart(2, '0')}` === filterMonth;
-        const statusMatch = filterStatus === 'all' || b.status === filterStatus;
+        const monthMatch = !appliedFilters.month || `${b.year}-${String(b.month).padStart(2, '0')}` === appliedFilters.month;
+        const statusMatch = appliedFilters.status === 'all' || b.status === appliedFilters.status;
         return monthMatch && statusMatch;
       })
       .sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true }));
-  }, [bills, filterMonth, filterStatus]);
+  }, [bills, hasSearched, appliedFilters]);
 
   return (
     <div className="animate-slide-up pb-20">
@@ -651,112 +722,157 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
             </div>
           </section>
 
-          {/* History section */}
+          {/* History/Search section */}
           <section>
-            {/* Header row: "Lịch sử gần đây" + filters */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '16px' }}>
-              <h2 className="form-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>Lịch sử gần đây</h2>
-              <div style={{ display: 'flex', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
-                {/* Month Filter */}
-                <select
-                  value={filterMonth}
-                  onChange={e => setFilterMonth(e.target.value)}
-                  style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '10px',
-                    color: filterMonth ? '#f97316' : '#94a3b8',
-                    fontSize: '11px', fontWeight: 700,
-                    padding: '6px 10px',
-                    outline: 'none', cursor: 'pointer',
-                    maxWidth: '100px'
-                  }}
-                >
-                  <option value="">Tháng</option>
-                  {availableMonths.map(ym => {
-                    const [y, m] = ym.split('-');
-                    return <option key={ym} value={ym}>Th{parseInt(m)}/{y}</option>;
-                  })}
-                </select>
+            {/* Filter & Search Bar - Full Width matching the cards above and below */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '16px', width: '100%' }}>
+              {/* Month Filter */}
+              <select
+                value={filterMonth}
+                onChange={e => setFilterMonth(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  color: filterMonth ? '#f97316' : '#94a3b8',
+                  fontSize: '12px', fontWeight: 700,
+                  padding: '10px 12px',
+                  outline: 'none', cursor: 'pointer'
+                }}
+              >
+                <option value="">Tháng</option>
+                {availableMonths.map(ym => {
+                  const [y, m] = ym.split('-');
+                  return <option key={ym} value={ym}>Th{parseInt(m)}/{y}</option>;
+                })}
+              </select>
 
-                {/* Status Filter */}
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  style={{
-                    background: filterStatus === 'paid' ? 'rgba(34,197,94,0.1)' : filterStatus === 'pending' ? 'rgba(245,158,11,0.1)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${filterStatus === 'paid' ? 'rgba(34,197,94,0.3)' : filterStatus === 'pending' ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: '10px',
-                    color: filterStatus === 'paid' ? '#22c55e' : filterStatus === 'pending' ? '#f59e0b' : '#94a3b8',
-                    fontSize: '11px', fontWeight: 700,
-                    padding: '6px 10px',
-                    outline: 'none', cursor: 'pointer',
-                    maxWidth: '90px'
-                  }}
-                >
-                  <option value="all">Status</option>
-                  <option value="paid">Đã thu</option>
-                  <option value="pending">Chưa thu</option>
-                </select>
-              </div>
+              {/* Status Filter */}
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: filterStatus === 'paid' ? 'rgba(34,197,94,0.1)' : filterStatus === 'pending' ? 'rgba(245,158,11,0.1)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${filterStatus === 'paid' ? 'rgba(34,197,94,0.3)' : filterStatus === 'pending' ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: '12px',
+                  color: filterStatus === 'paid' ? '#22c55e' : filterStatus === 'pending' ? '#f59e0b' : '#94a3b8',
+                  fontSize: '12px', fontWeight: 700,
+                  padding: '10px 12px',
+                  outline: 'none', cursor: 'pointer'
+                }}
+              >
+                <option value="all">Status</option>
+                <option value="paid">Đã thu</option>
+                <option value="pending">Chưa thu</option>
+              </select>
+
+              {/* Search Button */}
+              <button
+                onClick={handleSearchBills}
+                style={{
+                  background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  padding: '10px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(249, 115, 22, 0.3)',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Search size={14} />
+                <span>Tìm kiếm</span>
+              </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {filteredBills.map(bill => {
-                const isPaid = bill.status === 'paid';
-                return (
-                  <button
-                    key={bill.id}
-                    onClick={() => setViewingBill(bill)}
-                    className="glass-card"
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      marginBottom: '0', padding: '16px 20px',
-                      width: '100%', textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{
-                        width: '42px', height: '42px', borderRadius: '50%',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        minWidth: '42px',
-                        background: isPaid ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                        color: isPaid ? '#22c55e' : '#f59e0b'
-                      }}>
-                        {isPaid ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            {hasSearched && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {filteredBills.map(bill => {
+                  const isPaid = bill.status === 'paid';
+                  return (
+                    <button
+                      key={bill.id}
+                      onClick={() => setViewingBill(bill)}
+                      className="glass-card"
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        marginBottom: '0', padding: '16px 20px',
+                        width: '100%', textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          width: '42px', height: '42px', borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          minWidth: '42px',
+                          background: isPaid ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: isPaid ? '#22c55e' : '#f59e0b'
+                        }}>
+                          {isPaid ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p style={{ fontWeight: 'bold', fontSize: '14px', margin: '0 0 3px 0', color: 'white' }}>
+                            Phòng {bill.room} • Th{bill.month} {bill.year}
+                          </p>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{bill.tenantName}</p>
+                          {bill.note && (
+                            <div style={{ marginTop: '5px' }}>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '11px',
+                                color: '#f59e0b',
+                                background: 'rgba(245, 158, 11, 0.12)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                fontWeight: 600,
+                                maxWidth: '100%',
+                                wordBreak: 'break-word'
+                              }}>
+                                <span>📝</span>
+                                <span>{bill.note}</span>
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p style={{ fontWeight: 'bold', fontSize: '14px', margin: '0 0 3px 0', color: 'white' }}>
-                          Phòng {bill.room} • Th{bill.month} {bill.year}
+                      <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '12px' }}>
+                        <p style={{ fontWeight: 900, fontSize: '14px', margin: '0 0 5px 0', color: 'white' }}>
+                          {bill.total.toLocaleString()}đ
                         </p>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{bill.tenantName}</p>
+                        <span style={{
+                          fontSize: '9px', fontWeight: 900,
+                          padding: '3px 9px', borderRadius: '6px',
+                          background: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+                          color: isPaid ? '#22c55e' : '#f59e0b',
+                          textTransform: 'uppercase', letterSpacing: '0.1em'
+                        }}>
+                          {isPaid ? 'Đã thu' : 'Chưa thu'}
+                        </span>
                       </div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '12px' }}>
-                      <p style={{ fontWeight: 900, fontSize: '14px', margin: '0 0 5px 0', color: isPaid ? 'white' : 'white' }}>
-                        {bill.total.toLocaleString()}đ
-                      </p>
-                      <span style={{
-                        fontSize: '9px', fontWeight: 900,
-                        padding: '3px 9px', borderRadius: '6px',
-                        background: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: isPaid ? '#22c55e' : '#f59e0b',
-                        textTransform: 'uppercase', letterSpacing: '0.1em'
-                      }}>
-                        {isPaid ? 'Đã thu' : 'Chưa thu'}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-              {filteredBills.length === 0 && (
-                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '14px', padding: '32px 0' }}>
-                  {bills.length === 0 ? 'Chưa có hóa đơn nào' : 'Không có hóa đơn phù hợp với bộ lọc'}
-                </p>
-              )}
-            </div>
+                    </button>
+                  );
+                })}
+                {filteredBills.length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '36px 0' }}>
+                    <p style={{ margin: 0, fontWeight: 600 }}>Không tìm thấy hóa đơn nào</p>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </div>
       ) : (
@@ -765,6 +881,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
             onClick={() => { 
               setSelectedTenant(null); 
               setExtraServices([]); 
+              setBillNote('');
               const now = new Date();
               setSelectedBillingMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
             }}
@@ -811,6 +928,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
                   type="text"
+                  inputMode="numeric"
                   required
                   style={{
                     background: 'rgba(255,255,255,0.08)',
@@ -831,15 +949,16 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     setCustomRoomPrice(rawValue);
                   }}
                 />
-                <span className="text-sm font-black text-primary">đ</span>
+                <span className="text-sm font-black text-primary" style={{ minWidth: '32px' }}>đ</span>
               </div>
             </div>
 
-            <div className="mb-6 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
+            <div className="mb-4 p-4 rounded-xl bg-white-5 border border-white-10 flex justify-between items-center">
               <span className="text-xs font-bold text-muted uppercase tracking-widest">Phí Rác + Wifi</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
                   type="text"
+                  inputMode="numeric"
                   required
                   style={{
                     background: 'rgba(255,255,255,0.08)',
@@ -860,36 +979,129 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     setCustomTrashWifi(rawValue);
                   }}
                 />
-                <span className="text-sm font-black text-primary">đ</span>
+                <span className="text-sm font-black text-primary" style={{ minWidth: '32px' }}>đ</span>
               </div>
             </div>
 
-            <form onSubmit={handleCalculate} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-muted flex items-center gap-1 uppercase">
-                    <Zap size={10} className="text-amber-400" /> Số điện tiêu thụ (kWh)
-                  </label>
+            <form onSubmit={handleCalculate} className="space-y-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                {/* Điện Card */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '16px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={13} style={{ color: '#fbbf24' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                      Điện (kWh)
+                    </span>
+                  </div>
                   <input
-                    type="number" required
-                    className="w-full bg-[#1e293b] border border-white/10 rounded-xl p-4 text-white font-bold text-lg focus:border-primary outline-none"
-                    placeholder="VD: 30"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1.5px solid #f97316',
+                      borderRadius: '10px',
+                      color: '#f97316',
+                      padding: '8px 12px',
+                      fontSize: '15px',
+                      fontWeight: 900,
+                      textAlign: 'right',
+                      outline: 'none',
+                      WebkitAppearance: 'none'
+                    }}
+                    placeholder="0"
                     value={currentReadings.electricity}
-                    onChange={e => setCurrentReadings({ ...currentReadings, electricity: e.target.value })}
+                    onChange={e => {
+                      const rawValue = e.target.value.replace(/\D/g, '');
+                      setCurrentReadings({ ...currentReadings, electricity: rawValue });
+                    }}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-muted flex items-center gap-1 uppercase">
-                    <Droplet size={10} className="text-blue-400" /> Số nước tiêu thụ (m³)
-                  </label>
+
+                {/* Nước Card */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '16px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Droplet size={13} style={{ color: '#60a5fa' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                      Nước (m³)
+                    </span>
+                  </div>
                   <input
-                    type="number" required
-                    className="w-full bg-[#1e293b] border border-white/10 rounded-xl p-4 text-white font-bold text-lg focus:border-primary outline-none"
-                    placeholder="VD: 2"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1.5px solid #f97316',
+                      borderRadius: '10px',
+                      color: '#f97316',
+                      padding: '8px 12px',
+                      fontSize: '15px',
+                      fontWeight: 900,
+                      textAlign: 'right',
+                      outline: 'none',
+                      WebkitAppearance: 'none'
+                    }}
+                    placeholder="0"
                     value={currentReadings.water}
-                    onChange={e => setCurrentReadings({ ...currentReadings, water: e.target.value })}
+                    onChange={e => {
+                      const rawValue = e.target.value.replace(/\D/g, '');
+                      setCurrentReadings({ ...currentReadings, water: rawValue });
+                    }}
                   />
                 </div>
+              </div>
+
+              {/* Note input card */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '16px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileText size={13} style={{ color: '#f59e0b' }} />
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Ghi chú (Tùy chọn)
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="VD: Hẹn ngày 10 nộp, chậm lương..."
+                  value={billNote}
+                  onChange={e => setBillNote(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '10px',
+                    color: 'white',
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
               </div>
 
 
