@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { 
@@ -14,12 +14,12 @@ import Support from './pages/Support';
 import MemberDashboard from './pages/MemberDashboard';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import Landing, { BRANCHES } from './pages/Landing';
 import TenantModal from './components/TenantModal';
 import SupportModal from './components/SupportModal';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
-  const contentRef = React.useRef(null);
 
   React.useEffect(() => {
     const contentArea = document.querySelector('.content-area');
@@ -30,8 +30,6 @@ const ScrollToTop = () => {
 
   return null;
 };
-
-// Dashboard previously defined here - now external
 
 const NavItem = ({ to, icon: Icon, label }) => {
   const location = useLocation();
@@ -47,15 +45,36 @@ const NavItem = ({ to, icon: Icon, label }) => {
 };
 
 const AppContent = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('kaito_user');
     return saved ? JSON.parse(saved) : null;
+  });
+  const [selectedBranch, setSelectedBranch] = useState(() => {
+    return localStorage.getItem('kaito_selected_branch') || null;
   });
   const [tenants, setTenants] = useState([]);
   const [bills, setBills] = useState([]);
   const [supportRequests, setSupportRequests] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+
+  const currentBranchId = selectedBranch || 'bnb1';
+  const currentBranchObj = BRANCHES.find(b => b.id === currentBranchId) || BRANCHES[0];
+  const isCurrentActive = currentBranchObj.status === 'active';
+
+  // Branch-specific data filtering (legacy records without branchId default to 'bnb1')
+  const branchTenants = isCurrentActive 
+    ? tenants.filter(t => (t.branchId || 'bnb1') === currentBranchId)
+    : tenants.filter(t => t.branchId === currentBranchId);
+
+  const branchBills = isCurrentActive 
+    ? bills.filter(b => (b.branchId || 'bnb1') === currentBranchId)
+    : bills.filter(b => b.branchId === currentBranchId);
+
+  const branchSupportRequests = isCurrentActive 
+    ? supportRequests.filter(s => (s.branchId || 'bnb1') === currentBranchId)
+    : supportRequests.filter(s => s.branchId === currentBranchId);
 
   const handleUpdateSupportRequest = async (requestId, updatedData) => {
     try {
@@ -66,11 +85,30 @@ const AppContent = () => {
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('kaito_user', JSON.stringify(userData));
+    // Reset branch selection on fresh login to display landing page first
+    setSelectedBranch(null);
+    localStorage.removeItem('kaito_selected_branch');
+    navigate('/');
   };
 
   const handleLogout = () => {
     setUser(null);
+    setSelectedBranch(null);
     localStorage.removeItem('kaito_user');
+    localStorage.removeItem('kaito_selected_branch');
+    navigate('/');
+  };
+
+  const handleSelectBranch = (branchId) => {
+    setSelectedBranch(branchId);
+    localStorage.setItem('kaito_selected_branch', branchId);
+    navigate('/');
+  };
+
+  const handleBackToLanding = () => {
+    setSelectedBranch(null);
+    localStorage.removeItem('kaito_selected_branch');
+    navigate('/');
   };
 
   useEffect(() => {
@@ -102,7 +140,10 @@ const AppContent = () => {
   }, []);
 
   const handleAddTenant = async (tenant) => {
-    try { await setDoc(doc(db, 'tenants', tenant.id.toString()), tenant); } catch(err) { console.error('Error adding tenant:', err); }
+    try { 
+      const newTenant = { ...tenant, branchId: currentBranchId };
+      await setDoc(doc(db, 'tenants', tenant.id.toString()), newTenant); 
+    } catch(err) { console.error('Error adding tenant:', err); }
   };
 
   const handleRemoveTenant = async (tenantId) => {
@@ -114,7 +155,10 @@ const AppContent = () => {
   };
 
   const handleAddBill = async (bill) => {
-    try { await setDoc(doc(db, 'bills', bill.id.toString()), bill); } catch(err) { console.error('Error adding bill:', err); }
+    try { 
+      const newBill = { ...bill, branchId: currentBranchId };
+      await setDoc(doc(db, 'bills', bill.id.toString()), newBill); 
+    } catch(err) { console.error('Error adding bill:', err); }
   };
 
   const handleUpdateBill = async (billId, updatedData) => {
@@ -122,7 +166,10 @@ const AppContent = () => {
   };
 
   const handleAddSupportRequest = async (request) => {
-    try { await setDoc(doc(db, 'support_requests', request.id.toString()), request); } catch(err) { console.error('Error adding support request:', err); }
+    try { 
+      const newRequest = { ...request, branchId: currentBranchId };
+      await setDoc(doc(db, 'support_requests', request.id.toString()), newRequest); 
+    } catch(err) { console.error('Error adding support request:', err); }
   };
 
   const handleRestoreData = async (newTenants, newBills) => {
@@ -142,6 +189,24 @@ const AppContent = () => {
     return <Login onLogin={handleLogin} />;
   }
 
+  // If user is admin and hasn't picked a facility, show Landing page
+  if (user.role === 'admin' && !selectedBranch) {
+    return (
+      <div className="app-shell">
+        <div className="iphone-frame">
+          <main className="content-area">
+            <Landing 
+              user={user} 
+              onSelectBranch={handleSelectBranch} 
+              onLogout={handleLogout} 
+              tenants={branchTenants} 
+            />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <div className="iphone-frame">
@@ -149,18 +214,30 @@ const AppContent = () => {
           <Routes>
             {user.role === 'admin' ? (
               <>
-                <Route path="/" element={<Dashboard tenants={tenants} bills={bills} supportRequests={supportRequests} />} />
-                <Route path="/support" element={<Support user={user} tenants={tenants} supportRequests={supportRequests} onUpdateStatus={handleUpdateSupportRequest} onAddRequest={handleAddSupportRequest} onOpenSupportModal={() => setIsSupportModalOpen(true)} />} />
-                <Route path="/tenants" element={<KaitoTenants tenants={tenants} onAddTenant={() => setIsModalOpen(true)} onRemoveTenant={handleRemoveTenant} onUpdateTenant={handleUpdateTenant} />} />
-                <Route path="/billing" element={<Billing tenants={tenants} bills={bills} onAddBill={handleAddBill} onUpdateBill={handleUpdateBill} />} />
-                <Route path="/reports" element={<Reports bills={bills} />} />
-                <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} />} />
+                <Route 
+                  path="/" 
+                  element={
+                    <Dashboard 
+                      tenants={branchTenants} 
+                      bills={branchBills} 
+                      supportRequests={branchSupportRequests} 
+                      currentBranch={currentBranchId}
+                      onSwitchBranch={handleSelectBranch}
+                      onBackToLanding={handleBackToLanding}
+                    />
+                  } 
+                />
+                <Route path="/support" element={<Support user={user} tenants={branchTenants} supportRequests={branchSupportRequests} onUpdateStatus={handleUpdateSupportRequest} onAddRequest={handleAddSupportRequest} onOpenSupportModal={() => setIsSupportModalOpen(true)} />} />
+                <Route path="/tenants" element={<KaitoTenants tenants={branchTenants} onAddTenant={() => { if (!isCurrentActive) { alert(`Cơ sở ${currentBranchObj.name} chưa đi vào hoạt động, không thể thêm khách!`); return; } setIsModalOpen(true); }} onRemoveTenant={handleRemoveTenant} onUpdateTenant={handleUpdateTenant} />} />
+                <Route path="/billing" element={<Billing tenants={branchTenants} bills={branchBills} onAddBill={handleAddBill} onUpdateBill={handleUpdateBill} />} />
+                <Route path="/reports" element={<Reports bills={branchBills} currentBranch={currentBranchId} />} />
+                <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} currentBranch={currentBranchId} onBackToLanding={handleBackToLanding} />} />
               </>
             ) : (
               <>
                 <Route path="/" element={<MemberDashboard user={user} tenants={tenants} bills={bills} supportRequests={supportRequests} />} />
                 <Route path="/support" element={<Support user={user} tenants={tenants} supportRequests={supportRequests} onAddRequest={handleAddSupportRequest} onOpenSupportModal={() => setIsSupportModalOpen(true)} />} />
-                <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} />} />
+                <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} currentBranch={currentBranchId} onBackToLanding={handleBackToLanding} />} />
               </>
             )}
           </Routes>
@@ -173,7 +250,17 @@ const AppContent = () => {
             <>
               <NavItem to="/tenants" icon={Users} label="Khách thuê" />
               <div className="add-btn-container">
-                <button className="add-btn" onClick={() => setIsModalOpen(true)}>
+                <button 
+                  className="add-btn" 
+                  onClick={() => {
+                    if (!isCurrentActive) {
+                      alert(`Cơ sở ${currentBranchObj.name} chưa đi vào hoạt động, không thể thêm khách thuê!`);
+                      return;
+                    }
+                    setIsModalOpen(true);
+                  }}
+                  title={!isCurrentActive ? 'Cơ sở chưa hoạt động' : 'Thêm khách thuê'}
+                >
                   <Plus size={32} />
                 </button>
               </div>
