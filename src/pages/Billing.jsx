@@ -796,6 +796,23 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
             {hasSearched && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 2px', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Kết quả tìm kiếm
+                  </span>
+                  <span style={{ 
+                    fontSize: '11px', 
+                    fontWeight: 800, 
+                    color: filteredBills.length > 0 ? '#f97316' : '#64748b',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '2px 8px',
+                    borderRadius: '8px'
+                  }}>
+                    {filteredBills.length} hóa đơn
+                  </span>
+                </div>
+
                 {filteredBills.map(bill => {
                   const isPaid = bill.status === 'paid';
                   return (

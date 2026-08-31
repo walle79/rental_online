@@ -15,7 +15,7 @@ const fmtVND = (n) => {
   return `${n}`;
 };
 
-const Reports = ({ bills = [] }) => {
+const Reports = ({ bills = [], currentBranch = 'bnb1' }) => {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -32,13 +32,12 @@ const Reports = ({ bills = [] }) => {
   const [yearlyExpensesMap, setYearlyExpensesMap] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // ── Sync with Firestore (Entire Year) ──────────────────────────────────────
+  // ── Sync with Firestore (Entire Year for current branch) ─────────────────────────
   useEffect(() => {
     setLoading(true);
-    // Fetch all for current year using prefix range if no 'year' field or better yet, query by ID range
     const colRef = collection(db, 'monthly_expenses');
-    // IDs are like "2026_3". Lexicographically "2026_" to "2026_\uf8ff" works.
-    const yearPrefix = `${selectedYear}_`;
+    const isBnb1 = currentBranch === 'bnb1';
+    const yearPrefix = isBnb1 ? `${selectedYear}_` : `${currentBranch}_${selectedYear}_`;
     const q = query(
       colRef, 
       where('__name__', '>=', yearPrefix),
@@ -48,8 +47,10 @@ const Reports = ({ bills = [] }) => {
     const unsubscribe = onSnapshot(q, (querySnap) => {
       const map = {};
       querySnap.forEach(doc => {
-        const [y, m] = doc.id.split('_');
-        if (parseInt(y) === selectedYear) {
+        const parts = doc.id.split('_');
+        const y = isBnb1 ? parts[0] : parts[1];
+        const m = isBnb1 ? parts[1] : parts[2];
+        if (parseInt(y) === selectedYear && m) {
           map[parseInt(m)] = doc.data();
         }
       });
@@ -58,7 +59,7 @@ const Reports = ({ bills = [] }) => {
     });
 
     return () => unsubscribe();
-  }, [selectedYear]);
+  }, [selectedYear, currentBranch]);
 
   // Derived state for selected month - Sync to local state for editing
   useEffect(() => {
@@ -69,14 +70,12 @@ const Reports = ({ bills = [] }) => {
   }, [yearlyExpensesMap, selectedMonth]);
 
   const saveToDB = async (updates) => {
-    const docId = `${selectedYear}_${selectedMonth}`;
+    const isBnb1 = currentBranch === 'bnb1';
+    const docId = isBnb1 ? `${selectedYear}_${selectedMonth}` : `${currentBranch}_${selectedYear}_${selectedMonth}`;
     const docRef = doc(db, 'monthly_expenses', docId);
     
-    // Get latest state values safely
-    // Since we are calling this from inside onClick, we should be careful about state staleness
-    // but here we are usually passing the 'new' value in updates.
-    
     setDoc(docRef, {
+      branchId: currentBranch,
       electricity: updates.electricity !== undefined ? updates.electricity : paidElectricity,
       water: updates.water !== undefined ? updates.water : paidWater,
       extraExpenses: updates.extraExpenses !== undefined ? updates.extraExpenses : extraExpenses

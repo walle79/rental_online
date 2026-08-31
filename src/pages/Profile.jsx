@@ -1,7 +1,11 @@
 import React from 'react';
-import { User, Shield, Home, LogOut, ChevronRight, Settings, Download, Upload, RefreshCw } from 'lucide-react';
+import { User, Shield, Home, LogOut, ChevronRight, Settings, Download, Upload, RefreshCw, Building2 } from 'lucide-react';
+import { BRANCHES } from './Landing';
 
-const Profile = ({ user, onLogout, tenants, bills, onRestoreData }) => {
+const Profile = ({ user, onLogout, tenants, bills, onRestoreData, currentBranch = 'bnb1', onBackToLanding }) => {
+  const currentBranchInfo = BRANCHES.find(b => b.id === currentBranch);
+  const currentBranchName = currentBranchInfo ? currentBranchInfo.fullName : 'Cơ sở 1: BNB';
+
   const handleExport = () => {
     const data = {
       tenants,
@@ -107,17 +111,23 @@ const Profile = ({ user, onLogout, tenants, bills, onRestoreData }) => {
           </div>
         )}
 
-        <div className="list-item">
+        <button
+          type="button"
+          onClick={onBackToLanding}
+          className="list-item"
+          style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+        >
           <div className="item-left">
             <div className="icon-box">
-              <Shield size={16} />
+              <Building2 size={16} />
             </div>
-            <span className="item-label">Quyền hạn</span>
+            <span className="item-label">Cơ sở trọ</span>
           </div>
           <div className="item-right">
-            <span className="item-value" style={{ textTransform: 'capitalize' }}>{user.role}</span>
+            <span className="item-value">{currentBranchInfo?.code || 'BNB'}</span>
+            <ChevronRight size={14} className="chevron" />
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Actions */}
