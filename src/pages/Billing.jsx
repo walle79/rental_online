@@ -398,7 +398,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     electricity: 5000,
     water: 15000,
     room: 3000000,
-    trashWifi: 150000
+    trashWifi: 60000
   });
   const [loadingPrices, setLoadingPrices] = useState(true);
   const [showPriceSettings, setShowPriceSettings] = useState(false);
@@ -408,15 +408,27 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   const [customRoomPrice, setCustomRoomPrice] = useState('');
   const [customTrashWifi, setCustomTrashWifi] = useState('');
 
+  const selectedRoomOccupants = useMemo(() => {
+    if (!selectedTenant) return [];
+    return tenants.filter(t => t.room === selectedTenant.room);
+  }, [selectedTenant, tenants]);
+
+  const occupantCount = selectedRoomOccupants.length > 0 ? selectedRoomOccupants.length : 1;
+
   useEffect(() => {
     if (selectedTenant) {
       setCustomRoomPrice(selectedTenant.roomPrice ? selectedTenant.roomPrice.toString() : configPrices.room.toString());
-      setCustomTrashWifi(configPrices.trashWifi ? configPrices.trashWifi.toString() : '150000');
+      const roomOccupants = tenants.filter(t => t.room === selectedTenant.room);
+      const count = roomOccupants.length > 0 ? roomOccupants.length : 1;
+      const unitTrashWifi = (configPrices.trashWifi !== undefined && configPrices.trashWifi !== null && configPrices.trashWifi !== '')
+        ? Number(configPrices.trashWifi)
+        : 60000;
+      setCustomTrashWifi((unitTrashWifi * count).toString());
     } else {
       setCustomRoomPrice('');
       setCustomTrashWifi('');
     }
-  }, [selectedTenant, configPrices.room, configPrices.trashWifi]);
+  }, [selectedTenant, configPrices.room, configPrices.trashWifi, tenants]);
 
   useEffect(() => {
     if (showPriceSettings) {
@@ -628,7 +640,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                     />
                   </div>
                   <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Rác + Wifi (đ/tháng)</label>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Rác + Wifi (đ/người/tháng)</label>
                     <input
                       type="text" value={formatPriceDisplay(draftPrices.trashWifi)}
                       onChange={e => handleDraftChange('trashWifi', e.target.value)}
@@ -911,7 +923,9 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
               <div style={{ flex: 1, minWidth: 0, marginRight: '8px' }}>
                 <h2 className="text-[18px] font-bold mb-1" style={{ whiteSpace: 'nowrap' }}>Phòng {selectedTenant.room}</h2>
-                <p className="text-muted text-sm" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedTenant.name}</p>
+                <p className="text-muted text-sm" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {selectedRoomOccupants.length > 0 ? selectedRoomOccupants.map(t => t.name).join(', ') : selectedTenant.name}
+                </p>
               </div>
               <select
                 value={selectedBillingMonth}
@@ -972,7 +986,9 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
             </div>
 
             <div className="mb-3 rounded-2xl bg-white-5 border border-white-10 flex justify-between items-center" style={{ padding: '12px 14px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Rác + Wifi</span>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                Rác + Wifi {occupantCount > 1 ? `(${occupantCount} người)` : ''}
+              </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
                   type="text"
@@ -1117,7 +1133,9 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                         <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{previewWaterCost.toLocaleString()}đ</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>Rác + Wifi</span>
+                        <span style={{ fontSize: '13px', color: '#94a3b8', flex: 1, whiteSpace: 'nowrap' }}>
+                          Rác + Wifi {occupantCount > 1 ? `(${occupantCount} người)` : ''}
+                        </span>
                         <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{previewTrashWifi.toLocaleString()}đ</span>
                       </div>
 
