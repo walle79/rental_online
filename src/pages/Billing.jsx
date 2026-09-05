@@ -987,7 +987,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
             <div className="mb-3 rounded-2xl bg-white-5 border border-white-10 flex justify-between items-center" style={{ padding: '12px 14px' }}>
               <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                Rác + Wifi {occupantCount > 1 ? `(${occupantCount} người)` : ''}
+                Rác + Wifi
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
