@@ -50,9 +50,9 @@ const Profile = ({ user, onLogout, tenants, bills, onRestoreData, currentBranch 
   const handleRestoreSample = () => {
     if (window.confirm('Hệ thống sẽ thêm dữ liệu khách thuê mẫu để bạn tham khảo. Tiếp tục?')) {
       const sampleTenants = [
-        { id: 1710600000001, name: 'Nguyễn Văn Kaito', room: '101', phone: '0912 345 678', contractDate: '2024-01-10', occupation: 'Developer', deposit: '3000000' },
-        { id: 1710600000002, name: 'Trần Thị Bông', room: '201', phone: '0988 776 655', contractDate: '2024-01-15', occupation: 'Kế toán', deposit: '3000000' },
-        { id: 1710600000003, name: 'Lê Văn Nam', room: '305', phone: '0905 123 456', contractDate: '2024-02-01', occupation: 'Sinh viên', deposit: '1500000' }
+        { id: 1710600000001, name: 'Nguyễn Văn Kaito', room: '101', guestCount: 1, elecIndex: 120, waterIndex: 10, contractDate: '2024-01-10', deposit: '3000000', roomPrice: '3000000' },
+        { id: 1710600000002, name: 'Trần Thị Bông', room: '201', guestCount: 2, elecIndex: 250, waterIndex: 18, contractDate: '2024-01-15', deposit: '3000000', roomPrice: '3200000' },
+        { id: 1710600000003, name: 'Lê Văn Nam', room: '305', guestCount: 1, elecIndex: 85, waterIndex: 7, contractDate: '2024-02-01', deposit: '1500000', roomPrice: '2500000' }
       ];
       onRestoreData([...tenants, ...sampleTenants], bills);
     }

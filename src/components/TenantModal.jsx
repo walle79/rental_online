@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Hash, Calendar, Phone, ShieldCheck, HeartPulse, Building2, Wallet, AlertCircle, DollarSign } from 'lucide-react';
+import { X, Save, User, Hash, Calendar, Users, Zap, Droplet, Wallet, DollarSign } from 'lucide-react';
 
 const TenantModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
     room: '',
     birthYear: '',
-    phone: '',
-    relativePhone: '',
+    guestCount: '1',
+    elecIndex: '',
+    waterIndex: '',
     contractDate: new Date().toISOString().split('T')[0],
-    occupation: '',
     deposit: '',
     roomPrice: ''
   });
@@ -21,10 +21,10 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
         name: '',
         room: '',
         birthYear: '',
-        phone: '',
-        relativePhone: '',
+        guestCount: '1',
+        elecIndex: '',
+        waterIndex: '',
         contractDate: new Date().toISOString().split('T')[0],
-        occupation: '',
         deposit: '',
         roomPrice: ''
       });
@@ -56,7 +56,19 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
       return;
     }
 
-    onSave({ ...formData, id: Date.now() });
+    const guestCountNum = Number(formData.guestCount) || 1;
+    const elecNum = formData.elecIndex !== '' ? Number(formData.elecIndex) : 0;
+    const waterNum = formData.waterIndex !== '' ? Number(formData.waterIndex) : 0;
+
+    onSave({ 
+      ...formData, 
+      id: Date.now(),
+      guestCount: guestCountNum,
+      elecIndex: elecNum,
+      waterIndex: waterNum,
+      initialElec: elecNum,
+      initialWater: waterNum
+    });
     onClose();
   };
 
@@ -149,59 +161,67 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
               </div>
             </div>
             <div className="form-group border-b border-white/5 pb-2">
-              <label className="form-label !mb-1.5">Ngày thuê</label>
+              <label className="form-label !mb-1.5">Số khách thuê</label>
               <div className="input-icon-wrapper">
-                <Calendar size={18} className="input-icon" />
+                <Users size={18} className="input-icon" />
                 <input 
-                  type="date"
-                  required
+                  type="number"
+                  min="1"
                   className="form-input !bg-transparent"
-                  value={formData.contractDate}
-                  onChange={e => setFormData({...formData, contractDate: e.target.value})}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="form-grid-2">
-            <div className="form-group border-b border-white/5 pb-2">
-              <label className="form-label !mb-1.5">SĐT liên hệ</label>
-              <div className="input-icon-wrapper">
-                <Phone size={18} className="input-icon" />
-                <input 
-                  type="tel"
-                  className="form-input !bg-transparent"
-                  placeholder="0912..."
-                  value={formData.phone}
-                  onChange={e => setFormData({...formData, phone: e.target.value})}
-                />
-              </div>
-            </div>
-            <div className="form-group border-b border-white/5 pb-2">
-              <label className="form-label !mb-1.5">SĐT người thân</label>
-              <div className="input-icon-wrapper">
-                <HeartPulse size={18} className="input-icon" />
-                <input 
-                  type="tel"
-                  className="form-input !bg-transparent"
-                  placeholder="0988..."
-                  value={formData.relativePhone}
-                  onChange={e => setFormData({...formData, relativePhone: e.target.value})}
+                  placeholder="1"
+                  value={formData.guestCount}
+                  onChange={e => setFormData({...formData, guestCount: e.target.value})}
                 />
               </div>
             </div>
           </div>
 
           <div className="form-group border-b border-white/5 pb-2">
-            <label className="form-label !mb-1.5">Trường học / Nghề nghiệp</label>
+            <label className="form-label !mb-1.5">Ngày thuê</label>
             <div className="input-icon-wrapper">
-              <Building2 size={18} className="input-icon" />
+              <Calendar size={18} className="input-icon" />
               <input 
+                type="date"
+                required
                 className="form-input !bg-transparent"
-                placeholder="VD: ĐH Công nghệ / Kỹ sư"
-                value={formData.occupation}
-                onChange={e => setFormData({...formData, occupation: e.target.value})}
+                value={formData.contractDate}
+                onChange={e => setFormData({...formData, contractDate: e.target.value})}
               />
+            </div>
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group border-b border-white/5 pb-2">
+              <label className="form-label !mb-1.5">Chỉ số Điện</label>
+              <div className="input-icon-wrapper relative">
+                <Zap size={18} className="input-icon text-amber-400" />
+                <input 
+                  type="number"
+                  min="0"
+                  className="form-input !bg-transparent"
+                  style={{ paddingRight: '50px' }}
+                  placeholder="0"
+                  value={formData.elecIndex}
+                  onChange={e => setFormData({...formData, elecIndex: e.target.value})}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-amber-400 pointer-events-none">kWh</span>
+              </div>
+            </div>
+            <div className="form-group border-b border-white/5 pb-2">
+              <label className="form-label !mb-1.5">Chỉ số Nước</label>
+              <div className="input-icon-wrapper relative">
+                <Droplet size={18} className="input-icon text-cyan-400" />
+                <input 
+                  type="number"
+                  min="0"
+                  className="form-input !bg-transparent"
+                  style={{ paddingRight: '50px' }}
+                  placeholder="0"
+                  value={formData.waterIndex}
+                  onChange={e => setFormData({...formData, waterIndex: e.target.value})}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-cyan-400 pointer-events-none">m³</span>
+              </div>
             </div>
           </div>
 
