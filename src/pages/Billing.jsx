@@ -122,6 +122,13 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
         .join('\n');
     }
 
+    const elecIndexInfo = (localBill.electricity?.newIndex !== undefined)
+      ? ` (Cũ: ${localBill.electricity?.oldIndex ?? 0} → Mới: ${localBill.electricity?.newIndex})`
+      : '';
+    const waterIndexInfo = (localBill.water?.newIndex !== undefined)
+      ? ` (Cũ: ${localBill.water?.oldIndex ?? 0} → Mới: ${localBill.water?.newIndex})`
+      : '';
+
     const message = `📋 TRỌ BNB - HÓA ĐƠN TIỀN PHÒNG
 ---------------------------------
 📍 Phòng: ${localBill.room}
@@ -129,8 +136,8 @@ const InvoiceModalContent = ({ bill, onClose, onUpdateStatus, onSave, prices }) 
 📅 Kỳ hóa đơn: Tháng ${localBill.month}/${localBill.year}
 ---------------------------------
 💵 Tiền phòng: ${Number(rentVal).toLocaleString()}đ
-⚡ Điện: ${elecKwh} kWh × ${elecPrice.toLocaleString()}đ = ${Number(elecCost).toLocaleString()}đ
-💧 Nước: ${waterM3} m³ × ${waterPrice.toLocaleString()}đ = ${Number(waterCost).toLocaleString()}đ
+⚡ Điện: ${elecKwh} kWh${elecIndexInfo} × ${elecPrice.toLocaleString()}đ = ${Number(elecCost).toLocaleString()}đ
+💧 Nước: ${waterM3} m³${waterIndexInfo} × ${waterPrice.toLocaleString()}đ = ${Number(waterCost).toLocaleString()}đ
 🌐 Rác + Wifi: ${Number(trashWifiVal).toLocaleString()}đ
 ${extraText ? extraText + '\n---------------------------------' : ''}
 💰 TỔNG CỘNG: ${Number(localBill.total).toLocaleString()}đ
@@ -161,7 +168,7 @@ Vui lòng thanh toán tiền phòng sớm nhé. Cảm ơn bạn! 😊`;
 
   const handleToggleStatus = () => {
     const newStatus = isPaid ? 'pending' : 'paid';
-    onUpdateStatus(localBill.id, newStatus);
+    onUpdateStatus(localBill.id, newStatus, { ...localBill, status: newStatus });
     onClose();
   };
 
@@ -228,11 +235,17 @@ Vui lòng thanh toán tiền phòng sớm nhé. Cảm ơn bạn! 😊`;
 
         <div style={{ padding: '8px 0 0 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-            <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí điện ({localBill.electricity?.current ?? 0} × {elecPrice.toLocaleString()}đ)</span>
+            <span style={{ fontSize: '12px', color: '#475569' }}>
+              → Chi phí điện ({localBill.electricity?.current ?? 0} kWh × {elecPrice.toLocaleString()}đ)
+              {localBill.electricity?.newIndex !== undefined && ` [${localBill.electricity?.oldIndex ?? 0} → ${localBill.electricity?.newIndex}]`}
+            </span>
             <span style={{ fontSize: '12px', color: '#64748b' }}>{(localBill.electricity?.cost || 0).toLocaleString()}đ</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-            <span style={{ fontSize: '12px', color: '#475569' }}>→ Chi phí nước ({localBill.water?.current ?? 0} × {waterPrice.toLocaleString()}đ)</span>
+            <span style={{ fontSize: '12px', color: '#475569' }}>
+              → Chi phí nước ({localBill.water?.current ?? 0} m³ × {waterPrice.toLocaleString()}đ)
+              {localBill.water?.newIndex !== undefined && ` [${localBill.water?.oldIndex ?? 0} → ${localBill.water?.newIndex}]`}
+            </span>
             <span style={{ fontSize: '12px', color: '#64748b' }}>{(localBill.water?.cost || 0).toLocaleString()}đ</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
@@ -379,9 +392,15 @@ const InvoiceDetailModal = ({ bill, onClose, onUpdateStatus, onSave, prices }) =
 };
 
 // ─── Main Billing Component ──────────────────────────────────────────────────────
-const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
+const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTenant }) => {
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [viewingBill, setViewingBill] = useState(null);
+  const [meterReadings, setMeterReadings] = useState({
+    oldElec: 0,
+    newElec: '',
+    oldWater: 0,
+    newWater: ''
+  });
   const [currentReadings, setCurrentReadings] = useState({
     electricity: '',
     water: '',
@@ -413,22 +432,55 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     return tenants.filter(t => t.room === selectedTenant.room);
   }, [selectedTenant, tenants]);
 
-  const occupantCount = selectedRoomOccupants.length > 0 ? selectedRoomOccupants.length : 1;
+  const occupantCount = useMemo(() => {
+    if (!selectedTenant) return 1;
+    const roomTenants = tenants.filter(t => t.room === selectedTenant.room);
+    const sumGuests = roomTenants.reduce((sum, t) => sum + (Number(t.guestCount) > 0 ? Number(t.guestCount) : 1), 0);
+    return sumGuests > 0 ? sumGuests : 1;
+  }, [selectedTenant, tenants]);
 
   useEffect(() => {
     if (selectedTenant) {
       setCustomRoomPrice(selectedTenant.roomPrice ? selectedTenant.roomPrice.toString() : configPrices.room.toString());
-      const roomOccupants = tenants.filter(t => t.room === selectedTenant.room);
-      const count = roomOccupants.length > 0 ? roomOccupants.length : 1;
       const unitTrashWifi = (configPrices.trashWifi !== undefined && configPrices.trashWifi !== null && configPrices.trashWifi !== '')
         ? Number(configPrices.trashWifi)
         : 60000;
-      setCustomTrashWifi((unitTrashWifi * count).toString());
+      setCustomTrashWifi((unitTrashWifi * occupantCount).toString());
+
+      // Pre-fill meter readings with old index from tenant
+      const roomTenants = tenants.filter(t => t.room === selectedTenant.room);
+      const primary = roomTenants.find(t => t.id === selectedTenant.id) || selectedTenant;
+      const tOldElec = Number(primary.elecIndex ?? primary.initialElec ?? 0);
+      const tOldWater = Number(primary.waterIndex ?? primary.initialWater ?? 0);
+      setMeterReadings({
+        oldElec: tOldElec,
+        newElec: '',
+        oldWater: tOldWater,
+        newWater: ''
+      });
     } else {
       setCustomRoomPrice('');
       setCustomTrashWifi('');
+      setMeterReadings({
+        oldElec: 0,
+        newElec: '',
+        oldWater: 0,
+        newWater: ''
+      });
     }
-  }, [selectedTenant, configPrices.room, configPrices.trashWifi, tenants]);
+  }, [selectedTenant, configPrices.room, configPrices.trashWifi, occupantCount, tenants]);
+
+  const elecUsage = useMemo(() => {
+    if (meterReadings.newElec === '') return 0;
+    const diff = Number(meterReadings.newElec) - Number(meterReadings.oldElec);
+    return Math.max(0, diff);
+  }, [meterReadings.newElec, meterReadings.oldElec]);
+
+  const waterUsage = useMemo(() => {
+    if (meterReadings.newWater === '') return 0;
+    const diff = Number(meterReadings.newWater) - Number(meterReadings.oldWater);
+    return Math.max(0, diff);
+  }, [meterReadings.newWater, meterReadings.oldWater]);
 
   useEffect(() => {
     if (showPriceSettings) {
@@ -508,9 +560,15 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     const rooms = {};
     tenants.forEach(t => {
       if (!rooms[t.room]) {
-        rooms[t.room] = { room: t.room, primaryTenant: t, occupants: [] };
+        rooms[t.room] = { 
+          room: t.room, 
+          primaryTenant: t, 
+          occupants: [],
+          totalGuests: 0 
+        };
       }
       rooms[t.room].occupants.push(t.name);
+      rooms[t.room].totalGuests += (Number(t.guestCount) > 0 ? Number(t.guestCount) : 1);
     });
     return Object.values(rooms).sort((a, b) => a.room.localeCompare(b.room, undefined, { numeric: true }));
   }, [tenants]);
@@ -523,9 +581,6 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
   const handleCalculate = (e) => {
     e.preventDefault();
     if (!selectedTenant) return;
-
-    const elecUsage = Number(currentReadings.electricity);
-    const waterUsage = Number(currentReadings.water);
 
     const elecCost = elecUsage * configPrices.electricity;
     const waterCost = waterUsage * configPrices.water;
@@ -541,6 +596,11 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
 
     const [selYear, selMonth] = selectedBillingMonth.split('-').map(Number);
 
+    const oldElecNum = Number(meterReadings.oldElec) || 0;
+    const newElecNum = meterReadings.newElec !== '' ? Number(meterReadings.newElec) : oldElecNum;
+    const oldWaterNum = Number(meterReadings.oldWater) || 0;
+    const newWaterNum = meterReadings.newWater !== '' ? Number(meterReadings.newWater) : oldWaterNum;
+
     const newBill = {
       id: Date.now(),
       tenantId: selectedTenant.id,
@@ -548,8 +608,20 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
       room: selectedTenant.room,
       month: selMonth,
       year: selYear,
-      electricity: { current: elecUsage, price: configPrices.electricity, cost: elecCost },
-      water: { current: waterUsage, price: configPrices.water, cost: waterCost },
+      electricity: { 
+        oldIndex: oldElecNum,
+        newIndex: newElecNum,
+        current: elecUsage, 
+        price: configPrices.electricity, 
+        cost: elecCost 
+      },
+      water: { 
+        oldIndex: oldWaterNum,
+        newIndex: newWaterNum,
+        current: waterUsage, 
+        price: configPrices.water, 
+        cost: waterCost 
+      },
       trashWifi: trashWifiCost,
       extraServices: validExtraServices,
       note: billNote.trim(),
@@ -561,6 +633,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     onAddBill(newBill);
     setViewingBill(newBill);
     setSelectedTenant(null);
+    setMeterReadings({ oldElec: 0, newElec: '', oldWater: 0, newWater: '' });
     setCurrentReadings({ electricity: '', water: '', date: new Date().toISOString().split('T')[0] });
     setExtraServices([]);
     setBillNote('');
@@ -568,15 +641,45 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
     setSelectedBillingMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   };
 
-  const handleUpdateStatus = (billId, newStatus) => {
+  const syncMeterReadingsToTenant = (bill) => {
+    if (!bill || !onUpdateTenant) return;
+    const newElec = bill.electricity?.newIndex;
+    const newWater = bill.water?.newIndex;
+    const updates = {};
+    if (newElec !== undefined && newElec !== null && newElec !== '' && !isNaN(Number(newElec))) {
+      updates.elecIndex = Number(newElec);
+      updates.initialElec = Number(newElec);
+    }
+    if (newWater !== undefined && newWater !== null && newWater !== '' && !isNaN(Number(newWater))) {
+      updates.waterIndex = Number(newWater);
+      updates.initialWater = Number(newWater);
+    }
+    if (Object.keys(updates).length > 0) {
+      const targetTenants = tenants.filter(t => t.room === bill.room);
+      targetTenants.forEach(t => {
+        onUpdateTenant(t.id, updates);
+      });
+    }
+  };
+
+  const handleUpdateStatus = (billId, newStatus, fullBillObj) => {
     onUpdateBill(billId, { status: newStatus });
     if (viewingBill?.id === billId) {
       setViewingBill(prev => ({ ...prev, status: newStatus }));
+    }
+    if (newStatus === 'paid') {
+      const targetBill = fullBillObj || (viewingBill?.id === billId ? viewingBill : bills.find(b => b.id === billId));
+      if (targetBill) {
+        syncMeterReadingsToTenant(targetBill);
+      }
     }
   };
 
   const handleSaveBill = (updatedBill) => {
     onUpdateBill(updatedBill.id, updatedBill);
+    if (updatedBill.status === 'paid') {
+      syncMeterReadingsToTenant(updatedBill);
+    }
   };
 
   // Available months for filter
@@ -713,7 +816,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                           <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{roomInfo.occupants.join(', ')}</p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span className="room-badge">{roomInfo.occupants.length} người</span>
+                          <span className="room-badge">{roomInfo.totalGuests || 1} NGƯỜI</span>
                           <ChevronRight size={16} style={{ color: 'var(--primary)' }} />
                         </div>
                       </button>
@@ -1019,8 +1122,8 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
             </div>
 
             <form onSubmit={handleCalculate} className="space-y-4">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                {/* Điện Card */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                {/* Điện Row */}
                 <div style={{
                   background: 'rgba(255, 255, 255, 0.03)',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -1028,41 +1131,119 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                   padding: '12px 14px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '8px'
+                  gap: '10px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Zap size={13} style={{ color: '#fbbf24' }} />
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                      Điện (kWh)
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(251,191,36,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Zap size={16} style={{ color: '#fbbf24' }} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ fontSize: '12px', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Điện (kWh)
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>
+                          • {configPrices.electricity.toLocaleString()}đ/số
+                        </span>
+                      </div>
+                    </div>
+                    {elecUsage > 0 ? (
+                      <span style={{ fontSize: '12px', fontWeight: 900, color: '#fbbf24', background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', padding: '3px 10px', borderRadius: '8px', flexShrink: 0 }}>
+                        +{elecUsage} kWh
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', flexShrink: 0 }}>
+                        0 kWh
+                      </span>
+                    )}
                   </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    style={{
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+                    {/* Chỉ số cũ */}
+                    <div style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '12px',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      minWidth: 0,
                       width: '100%',
-                      background: 'rgba(255,255,255,0.08)',
+                      boxSizing: 'border-box'
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Chỉ số cũ
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={meterReadings.oldElec}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setMeterReadings(prev => ({ ...prev, oldElec: val === '' ? 0 : Number(val) }));
+                        }}
+                        style={{
+                          width: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#cbd5e1',
+                          fontSize: '18px',
+                          fontWeight: 900,
+                          outline: 'none',
+                          padding: 0
+                        }}
+                      />
+                    </div>
+
+                    {/* Chỉ số mới */}
+                    <div style={{
+                      background: 'rgba(255,255,255,0.06)',
                       border: '1.5px solid #f97316',
-                      borderRadius: '10px',
-                      color: '#f97316',
-                      padding: '8px 12px',
-                      fontSize: '15px',
-                      fontWeight: 900,
-                      textAlign: 'right',
-                      outline: 'none',
-                      WebkitAppearance: 'none'
-                    }}
-                    placeholder="0"
-                    value={currentReadings.electricity}
-                    onChange={e => {
-                      const rawValue = e.target.value.replace(/\D/g, '');
-                      setCurrentReadings({ ...currentReadings, electricity: rawValue });
-                    }}
-                  />
+                      borderRadius: '12px',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      minWidth: 0,
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Chỉ số mới
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder={meterReadings.oldElec.toString()}
+                        value={meterReadings.newElec}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setMeterReadings(prev => ({ ...prev, newElec: val }));
+                        }}
+                        style={{
+                          width: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#f97316',
+                          fontSize: '18px',
+                          fontWeight: 900,
+                          outline: 'none',
+                          padding: 0
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Nước Card */}
+                {/* Nước Row */}
                 <div style={{
                   background: 'rgba(255, 255, 255, 0.03)',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -1070,44 +1251,122 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill }) => {
                   padding: '12px 14px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '8px'
+                  gap: '10px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Droplet size={13} style={{ color: '#60a5fa' }} />
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                      Nước (m³)
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(96,165,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Droplet size={16} style={{ color: '#60a5fa' }} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ fontSize: '12px', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Nước (m³)
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>
+                          • {configPrices.water.toLocaleString()}đ/m³
+                        </span>
+                      </div>
+                    </div>
+                    {waterUsage > 0 ? (
+                      <span style={{ fontSize: '12px', fontWeight: 900, color: '#60a5fa', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', padding: '3px 10px', borderRadius: '8px', flexShrink: 0 }}>
+                        +{waterUsage} m³
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', flexShrink: 0 }}>
+                        0 m³
+                      </span>
+                    )}
                   </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    style={{
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+                    {/* Chỉ số cũ */}
+                    <div style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '12px',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      minWidth: 0,
                       width: '100%',
-                      background: 'rgba(255,255,255,0.08)',
+                      boxSizing: 'border-box'
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Chỉ số cũ
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={meterReadings.oldWater}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setMeterReadings(prev => ({ ...prev, oldWater: val === '' ? 0 : Number(val) }));
+                        }}
+                        style={{
+                          width: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#cbd5e1',
+                          fontSize: '18px',
+                          fontWeight: 900,
+                          outline: 'none',
+                          padding: 0
+                        }}
+                      />
+                    </div>
+
+                    {/* Chỉ số mới */}
+                    <div style={{
+                      background: 'rgba(255,255,255,0.06)',
                       border: '1.5px solid #f97316',
-                      borderRadius: '10px',
-                      color: '#f97316',
-                      padding: '8px 12px',
-                      fontSize: '15px',
-                      fontWeight: 900,
-                      textAlign: 'right',
-                      outline: 'none',
-                      WebkitAppearance: 'none'
-                    }}
-                    placeholder="0"
-                    value={currentReadings.water}
-                    onChange={e => {
-                      const rawValue = e.target.value.replace(/\D/g, '');
-                      setCurrentReadings({ ...currentReadings, water: rawValue });
-                    }}
-                  />
+                      borderRadius: '12px',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      minWidth: 0,
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Chỉ số mới
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder={meterReadings.oldWater.toString()}
+                        value={meterReadings.newWater}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setMeterReadings(prev => ({ ...prev, newWater: val }));
+                        }}
+                        style={{
+                          width: '100%',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#f97316',
+                          fontSize: '18px',
+                          fontWeight: 900,
+                          outline: 'none',
+                          padding: 0
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {(() => {
-                const previewElecUsage = Number(currentReadings.electricity) || 0;
-                const previewWaterUsage = Number(currentReadings.water) || 0;
+                const previewElecUsage = elecUsage;
+                const previewWaterUsage = waterUsage;
                 const previewExtraServices = extraServices.filter(s => s.name.trim() !== '' && (Number(s.cost) || 0) > 0);
                 const previewTrashWifi = Number(customTrashWifi) || 0;
                 

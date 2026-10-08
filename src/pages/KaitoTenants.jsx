@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import {
-  Search, UserPlus, Briefcase, Phone,
-  Calendar, HeartPulse, Timer, User, Wallet, UserMinus,
+  Search, UserPlus, Users, Zap, Droplet,
+  Calendar, Timer, User, Wallet, UserMinus,
   AlertTriangle, DollarSign, Edit3, Check, X
 } from 'lucide-react';
 
@@ -76,12 +76,16 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
   );
 };
 
-const TenantEditableRow = ({ icon: Icon, label, value, type = 'text', onSave, suffix = '' }) => {
+const TenantEditableRow = ({ icon: Icon, iconColor, label, value, type = 'text', onSave, suffix = '' }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
   const formatDisplay = (val) => {
-    if (!val && val !== 0) return '---';
+    if (val === undefined || val === null || val === '') return '---';
     if (type === 'number') return Number(val).toLocaleString() + suffix;
     if (type === 'date' && val) return val.split('-').reverse().join('/');
     return val + suffix;
@@ -89,7 +93,10 @@ const TenantEditableRow = ({ icon: Icon, label, value, type = 'text', onSave, su
 
   const handleSave = () => {
     let finalValue = draft;
-    if (type === 'number') finalValue = draft.toString().replace(/\D/g, '');
+    if (type === 'number') {
+      const cleaned = draft !== undefined && draft !== null ? draft.toString().replace(/\D/g, '') : '';
+      finalValue = cleaned === '' ? 0 : Number(cleaned);
+    }
     onSave(finalValue);
     setEditing(false);
   };
@@ -97,7 +104,13 @@ const TenantEditableRow = ({ icon: Icon, label, value, type = 'text', onSave, su
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div className="flex items-center gap-3">
-        {Icon && <Icon size={16} className="text-primary shrink-0 opacity-80" />}
+        {Icon && (
+          <Icon
+            size={16}
+            className="shrink-0 opacity-80"
+            style={{ color: iconColor || 'var(--primary)' }}
+          />
+        )}
         <span className="text-[13px] text-muted font-medium">{label}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -105,7 +118,7 @@ const TenantEditableRow = ({ icon: Icon, label, value, type = 'text', onSave, su
           <>
             <input
               type={type === 'number' ? 'text' : type}
-              value={type === 'number' ? (draft ? Number(draft).toLocaleString() : '') : draft}
+              value={type === 'number' ? (draft !== undefined && draft !== null && draft !== '' ? Number(draft).toLocaleString() : '') : (draft ?? '')}
               onChange={e => {
                 let val = e.target.value;
                 if (type === 'number') val = val.replace(/\D/g, '');
@@ -145,6 +158,78 @@ const TenantEditableRow = ({ icon: Icon, label, value, type = 'text', onSave, su
           </>
         )}
       </div>
+    </div>
+  );
+};
+
+const EditableTenantName = ({ name, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  useEffect(() => {
+    setDraft(name);
+  }, [name]);
+
+  const handleSave = () => {
+    const trimmed = draft.trim();
+    if (trimmed) onSave(trimmed);
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSave();
+    if (e.key === 'Escape') { setDraft(name); setEditing(false); }
+  };
+
+  if (editing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+        <input
+          type="text"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          autoFocus
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1.5px solid #f97316',
+            borderRadius: '10px',
+            color: 'white',
+            padding: '5px 10px',
+            fontSize: '15px',
+            fontWeight: 700,
+            flex: 1,
+            minWidth: 0,
+            outline: 'none',
+          }}
+        />
+        <button
+          onClick={handleSave}
+          style={{ background: '#22c55e', border: 'none', borderRadius: '6px', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+        >
+          <Check size={14} color="white" strokeWidth={3} />
+        </button>
+        <button
+          onClick={() => { setDraft(name); setEditing(false); }}
+          style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+        >
+          <X size={14} color="#94a3b8" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+      <h3 style={{ fontSize: '17px', fontWeight: 700, color: 'white', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {name || '---'}
+      </h3>
+      <button
+        onClick={() => { setDraft(name); setEditing(true); }}
+        style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+      >
+        <Edit3 size={12} color="#f97316" strokeWidth={2.5} />
+      </button>
     </div>
   );
 };
@@ -252,12 +337,15 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenan
                   </div>
                   <div className="flex-1 min-w-0 ml-3 max-w-full">
                     <div className="flex justify-between items-start gap-3">
-                      <h3 className="text-[17px] font-bold text-white truncate pr-2">{tenant.name || '---'}</h3>
+                      <EditableTenantName
+                        name={tenant.name || ''}
+                        onSave={(val) => handleUpdateField(tenant.id, 'name', val)}
+                      />
                       <div className="room-badge whitespace-nowrap shrink-0">PHÒNG {tenant.room || '---'}</div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-muted font-bold uppercase tracking-wider mt-1.5">
-                      <Briefcase size={12} className="opacity-70" />
-                      <span className="truncate">{tenant.occupation || 'Chưa cập nhật'}</span>
+                      <Users size={12} className="opacity-70 text-primary" />
+                      <span className="truncate">{tenant.guestCount ? `${tenant.guestCount} khách thuê` : '1 khách thuê'}</span>
                     </div>
                   </div>
                 </div>
@@ -281,22 +369,42 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenan
                     onSave={(val) => handleUpdateField(tenant.id, 'contractDate', val)} 
                   />
 
-                  {/* SĐT */}
+                  {/* Số khách thuê */}
                   <TenantEditableRow 
-                    icon={Phone} 
-                    label="SĐT" 
-                    value={tenant.phone} 
-                    type="tel" 
-                    onSave={(val) => handleUpdateField(tenant.id, 'phone', val)} 
+                    icon={Users} 
+                    label="Số khách thuê" 
+                    value={tenant.guestCount !== undefined && tenant.guestCount !== null ? tenant.guestCount : 1} 
+                    type="number" 
+                    suffix=" người"
+                    onSave={(val) => handleUpdateField(tenant.id, 'guestCount', Number(val) || 1)} 
                   />
 
-                  {/* SĐT NT */}
+                  {/* Chỉ số Điện */}
                   <TenantEditableRow 
-                    icon={HeartPulse} 
-                    label="SĐT NT" 
-                    value={tenant.relativePhone} 
-                    type="tel" 
-                    onSave={(val) => handleUpdateField(tenant.id, 'relativePhone', val)} 
+                    icon={Zap} 
+                    iconColor="#fbbf24"
+                    label="Chỉ số Điện" 
+                    value={tenant.elecIndex ?? tenant.initialElec} 
+                    type="number" 
+                    suffix=" kWh"
+                    onSave={(val) => {
+                      const num = Number(val) || 0;
+                      onUpdateTenant(tenant.id, { elecIndex: num, initialElec: num });
+                    }} 
+                  />
+
+                  {/* Chỉ số Nước */}
+                  <TenantEditableRow 
+                    icon={Droplet} 
+                    iconColor="#60a5fa"
+                    label="Chỉ số Nước" 
+                    value={tenant.waterIndex ?? tenant.initialWater} 
+                    type="number" 
+                    suffix=" m³"
+                    onSave={(val) => {
+                      const num = Number(val) || 0;
+                      onUpdateTenant(tenant.id, { waterIndex: num, initialWater: num });
+                    }} 
                   />
 
                   {/* Giá phòng */}

@@ -229,7 +229,7 @@ const AppContent = () => {
                 />
                 <Route path="/support" element={<Support user={user} tenants={branchTenants} supportRequests={branchSupportRequests} onUpdateStatus={handleUpdateSupportRequest} onAddRequest={handleAddSupportRequest} onOpenSupportModal={() => setIsSupportModalOpen(true)} />} />
                 <Route path="/tenants" element={<KaitoTenants tenants={branchTenants} onAddTenant={() => { if (!isCurrentActive) { alert(`Cơ sở ${currentBranchObj.name} chưa đi vào hoạt động, không thể thêm khách!`); return; } setIsModalOpen(true); }} onRemoveTenant={handleRemoveTenant} onUpdateTenant={handleUpdateTenant} />} />
-                <Route path="/billing" element={<Billing tenants={branchTenants} bills={branchBills} onAddBill={handleAddBill} onUpdateBill={handleUpdateBill} />} />
+                <Route path="/billing" element={<Billing tenants={branchTenants} bills={branchBills} onAddBill={handleAddBill} onUpdateBill={handleUpdateBill} onUpdateTenant={handleUpdateTenant} />} />
                 <Route path="/reports" element={<Reports bills={branchBills} currentBranch={currentBranchId} />} />
                 <Route path="/profile" element={<Profile user={user} onLogout={handleLogout} tenants={tenants} bills={bills} onRestoreData={handleRestoreData} currentBranch={currentBranchId} onBackToLanding={handleBackToLanding} />} />
               </>
