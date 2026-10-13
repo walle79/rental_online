@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useLocation } from 'react-router-dom';
+import { db } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import {
   Search, UserPlus, Users, Zap, Droplet,
   Calendar, Timer, User, Wallet, UserMinus,
-  AlertTriangle, DollarSign, Edit3, Check, X
+  AlertTriangle, DollarSign, Edit3, Check, X, Wind
 } from 'lucide-react';
+import { DEFAULT_PRICES, mergePrices, calculateRoomPrice } from '../utils/roomPrice';
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
   if (!isOpen) return null;
@@ -241,10 +244,27 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenan
 
   const [searchTerm, setSearchTerm] = useState(initialRoom);
   const [deletingTenant, setDeletingTenant] = useState(null);
+  const [configPrices, setConfigPrices] = useState(DEFAULT_PRICES);
 
   const handleUpdateField = (tenantId, field, newValue) => {
     onUpdateTenant(tenantId, { [field]: newValue });
   };
+
+  const guestCountOf = (tenant) => (Number(tenant.guestCount) > 0 ? Number(tenant.guestCount) : 1);
+
+  const persistRoomPrice = (tenant, { guestCount, hasAircon }) => {
+    const nextGuests = guestCount ?? guestCountOf(tenant);
+    const nextAircon = hasAircon ?? !!tenant.hasAircon;
+    const roomPrice = calculateRoomPrice({ guestCount: nextGuests, hasAircon: nextAircon, prices: configPrices });
+    onUpdateTenant(tenant.id, { guestCount: nextGuests, hasAircon: nextAircon, roomPrice });
+  };
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'config', 'prices'), (snap) => {
+      setConfigPrices(snap.exists() ? mergePrices(snap.data()) : DEFAULT_PRICES);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (initialRoom) {
@@ -376,7 +396,7 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenan
                     value={tenant.guestCount !== undefined && tenant.guestCount !== null ? tenant.guestCount : 1} 
                     type="number" 
                     suffix=" người"
-                    onSave={(val) => handleUpdateField(tenant.id, 'guestCount', Number(val) || 1)} 
+                    onSave={(val) => persistRoomPrice(tenant, { guestCount: Number(val) || 1 })} 
                   />
 
                   {/* Chỉ số Điện */}
@@ -407,15 +427,39 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenan
                     }} 
                   />
 
-                  {/* Giá phòng */}
-                  <TenantEditableRow 
-                    icon={DollarSign} 
-                    label="Giá phòng" 
-                    value={tenant.roomPrice} 
-                    type="number" 
-                    suffix="đ"
-                    onSave={(val) => handleUpdateField(tenant.id, 'roomPrice', val)} 
-                  />
+                  {/* Điều hòa */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="flex items-center gap-3">
+                      <Wind size={16} className="shrink-0 opacity-80" style={{ color: '#38bdf8' }} />
+                      <span className="text-[13px] text-muted font-medium">Điều hòa</span>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <span className="text-[12px] font-bold" style={{ color: tenant.hasAircon ? '#38bdf8' : '#64748b' }}>
+                        {tenant.hasAircon ? 'Có' : 'Không'}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={!!tenant.hasAircon}
+                        onChange={(e) => persistRoomPrice(tenant, { hasAircon: e.target.checked })}
+                        style={{ width: '18px', height: '18px', accentColor: '#f97316', cursor: 'pointer' }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Giá phòng — tính từ settings + số người + điều hòa */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="flex items-center gap-3">
+                      <DollarSign size={16} className="text-primary shrink-0 opacity-80" />
+                      <span className="text-[13px] text-muted font-medium">Giá phòng</span>
+                    </div>
+                    <span className="text-[14px] font-bold text-white">
+                      {calculateRoomPrice({
+                        guestCount: guestCountOf(tenant),
+                        hasAircon: !!tenant.hasAircon,
+                        prices: configPrices
+                      }).toLocaleString()}đ
+                    </span>
+                  </div>
 
                   {/* Tiền cọc */}
                   <TenantEditableRow 

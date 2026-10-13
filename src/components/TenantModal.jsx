@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, User, Hash, Calendar, Users, Zap, Droplet, Wallet, DollarSign } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Save, User, Hash, Calendar, Users, Zap, Droplet, Wallet, DollarSign, Wind } from 'lucide-react';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { DEFAULT_PRICES, mergePrices, calculateRoomPrice } from '../utils/roomPrice';
 
 const TenantModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -11,9 +14,10 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
     waterIndex: '',
     contractDate: new Date().toISOString().split('T')[0],
     deposit: '',
-    roomPrice: ''
+    hasAircon: false
   });
   const [error, setError] = useState('');
+  const [configPrices, setConfigPrices] = useState(DEFAULT_PRICES);
 
   useEffect(() => {
     if (isOpen) {
@@ -26,11 +30,20 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
         waterIndex: '',
         contractDate: new Date().toISOString().split('T')[0],
         deposit: '',
-        roomPrice: ''
+        hasAircon: false
       });
       setError('');
+      getDoc(doc(db, 'config', 'prices')).then((snap) => {
+        if (snap.exists()) setConfigPrices(mergePrices(snap.data()));
+      }).catch(() => {});
     }
   }, [isOpen]);
+
+  const computedRoomPrice = useMemo(() => calculateRoomPrice({
+    guestCount: Number(formData.guestCount) || 1,
+    hasAircon: !!formData.hasAircon,
+    prices: configPrices
+  }), [formData.guestCount, formData.hasAircon, configPrices]);
 
   if (!isOpen) return null;
 
@@ -67,7 +80,9 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
       elecIndex: elecNum,
       waterIndex: waterNum,
       initialElec: elecNum,
-      initialWater: waterNum
+      initialWater: waterNum,
+      hasAircon: !!formData.hasAircon,
+      roomPrice: computedRoomPrice
     });
     onClose();
   };
@@ -81,11 +96,6 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
   const handleDepositChange = (e) => {
     const rawValue = e.target.value.replace(/\D/g, '');
     setFormData({ ...formData, deposit: rawValue });
-  };
-
-  const handleRoomPriceChange = (e) => {
-    const rawValue = e.target.value.replace(/\D/g, '');
-    setFormData({ ...formData, roomPrice: rawValue });
   };
 
   return (
@@ -226,20 +236,41 @@ const TenantModal = ({ isOpen, onClose, onSave }) => {
           </div>
 
           <div className="form-group border-b border-white/5 pb-2">
+            <label className="form-label !mb-1.5">Điều hòa</label>
+            <label className="flex items-center justify-between py-2 cursor-pointer">
+              <div className="flex items-center gap-2">
+                <Wind size={18} className="text-sky-400" />
+                <span className="text-sm font-bold" style={{ color: formData.hasAircon ? '#38bdf8' : '#94a3b8' }}>
+                  {formData.hasAircon ? 'Có điều hòa' : 'Không điều hòa'}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={!!formData.hasAircon}
+                onChange={e => setFormData({ ...formData, hasAircon: e.target.checked })}
+                style={{ width: '18px', height: '18px', accentColor: '#f97316', cursor: 'pointer' }}
+              />
+            </label>
+          </div>
+
+          <div className="form-group border-b border-white/5 pb-2">
             <label className="form-label !mb-1.5">Giá phòng/tháng</label>
             <div className="input-icon-wrapper">
               <DollarSign size={18} className="input-icon" />
               <input 
                 type="text"
-                required
+                readOnly
                 className="form-input !bg-transparent"
-                style={{ paddingRight: '60px' }}
-                placeholder="2.000.000"
-                value={formatVND(formData.roomPrice)}
-                onChange={handleRoomPriceChange}
+                style={{ paddingRight: '60px', opacity: 0.85, cursor: 'default' }}
+                value={formatVND(computedRoomPrice)}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-primary pointer-events-none">VNĐ</span>
             </div>
+            <p className="text-[10px] text-muted mt-1.5 font-bold uppercase tracking-wider">
+              {configPrices.room?.toLocaleString()}đ
+              {Number(formData.guestCount) > 1 ? ` + ${(Number(formData.guestCount) - 1)} × ${configPrices.extraPerson?.toLocaleString()}đ` : ''}
+              {formData.hasAircon ? ` + ${configPrices.aircon?.toLocaleString()}đ ĐH` : ''}
+            </p>
           </div>
 
           <div className="form-group border-b border-white/5 pb-2">

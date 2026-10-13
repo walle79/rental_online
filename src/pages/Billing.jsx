@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { DEFAULT_PRICES, mergePrices, calculateRoomPrice } from '../utils/roomPrice';
 import {
   Droplet, Zap, Receipt, History,
   ChevronRight, CheckCircle2, AlertCircle, Trash2,
@@ -413,16 +414,11 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTe
   const [extraServices, setExtraServices] = useState([]);
   const [billNote, setBillNote] = useState('');
 
-  const [configPrices, setConfigPrices] = useState({
-    electricity: 5000,
-    water: 15000,
-    room: 3000000,
-    trashWifi: 60000
-  });
+  const [configPrices, setConfigPrices] = useState(DEFAULT_PRICES);
   const [loadingPrices, setLoadingPrices] = useState(true);
   const [showPriceSettings, setShowPriceSettings] = useState(false);
   const [isSavingPrices, setIsSavingPrices] = useState(false);
-  const [draftPrices, setDraftPrices] = useState({ electricity: '', water: '', room: '', trashWifi: '' });
+  const [draftPrices, setDraftPrices] = useState({ electricity: '', water: '', room: '', extraPerson: '', aircon: '', trashWifi: '' });
 
   const [customRoomPrice, setCustomRoomPrice] = useState('');
   const [customTrashWifi, setCustomTrashWifi] = useState('');
@@ -441,7 +437,12 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTe
 
   useEffect(() => {
     if (selectedTenant) {
-      setCustomRoomPrice(selectedTenant.roomPrice ? selectedTenant.roomPrice.toString() : configPrices.room.toString());
+      const roomHasAircon = selectedRoomOccupants.some(t => t.hasAircon) || !!selectedTenant.hasAircon;
+      setCustomRoomPrice(calculateRoomPrice({
+        guestCount: occupantCount,
+        hasAircon: roomHasAircon,
+        prices: configPrices
+      }).toString());
       const unitTrashWifi = (configPrices.trashWifi !== undefined && configPrices.trashWifi !== null && configPrices.trashWifi !== '')
         ? Number(configPrices.trashWifi)
         : 60000;
@@ -468,7 +469,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTe
         newWater: ''
       });
     }
-  }, [selectedTenant, configPrices.room, configPrices.trashWifi, occupantCount, tenants]);
+  }, [selectedTenant, selectedRoomOccupants, configPrices, occupantCount, tenants]);
 
   const elecUsage = useMemo(() => {
     if (meterReadings.newElec === '') return 0;
@@ -488,6 +489,8 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTe
         electricity: configPrices.electricity?.toString() || '',
         water: configPrices.water?.toString() || '',
         room: configPrices.room?.toString() || '',
+        extraPerson: configPrices.extraPerson?.toString() || '',
+        aircon: configPrices.aircon?.toString() || '',
         trashWifi: configPrices.trashWifi?.toString() || ''
       });
     }
@@ -510,7 +513,7 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTe
         const docRef = doc(db, 'config', 'prices');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setConfigPrices(docSnap.data());
+          setConfigPrices(mergePrices(docSnap.data()));
         }
       } catch (error) {
         console.error("Error fetching prices:", error);
@@ -528,6 +531,8 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTe
         electricity: Number(draftPrices.electricity) || 0,
         water: Number(draftPrices.water) || 0,
         room: Number(draftPrices.room) || 0,
+        extraPerson: Number(draftPrices.extraPerson) || 0,
+        aircon: Number(draftPrices.aircon) || 0,
         trashWifi: Number(draftPrices.trashWifi) || 0
       };
       await setDoc(doc(db, 'config', 'prices'), newConfig);
@@ -742,7 +747,34 @@ const Billing = ({ tenants = [], bills = [], onAddBill, onUpdateBill, onUpdateTe
                       style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
                     />
                   </div>
-                  <div style={{ gridColumn: 'span 2' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Giá phòng (đ/tháng)</label>
+                    <input
+                      type="text" value={formatPriceDisplay(draftPrices.room)}
+                      onChange={e => handleDraftChange('room', e.target.value)}
+                      placeholder="2.100.000"
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Ở thêm người (đ/người)</label>
+                    <input
+                      type="text" value={formatPriceDisplay(draftPrices.extraPerson)}
+                      onChange={e => handleDraftChange('extraPerson', e.target.value)}
+                      placeholder="200.000"
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Điều hòa (đ/tháng)</label>
+                    <input
+                      type="text" value={formatPriceDisplay(draftPrices.aircon)}
+                      onChange={e => handleDraftChange('aircon', e.target.value)}
+                      placeholder="300.000"
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 10px', color: 'white', fontSize: '14px', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
                     <label style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Rác + Wifi (đ/người/tháng)</label>
                     <input
                       type="text" value={formatPriceDisplay(draftPrices.trashWifi)}
