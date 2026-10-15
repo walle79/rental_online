@@ -343,7 +343,7 @@ const Landing = ({ user, onSelectBranch, onLogout, tenants = [] }) => {
 
                     {isActive ? (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        👥 {tenants.length} khách thuê
+                        👥 {tenants.reduce((sum, t) => sum + (Number(t.guestCount) > 0 ? Number(t.guestCount) : 1), 0)} khách thuê
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/5 text-slate-400 border border-white/10">
