@@ -175,7 +175,9 @@ const EditableTenantName = ({ name, onSave }) => {
 
   const handleSave = () => {
     const trimmed = draft.trim();
-    if (trimmed) onSave(trimmed);
+    if (trimmed && trimmed !== name) {
+      onSave(trimmed);
+    }
     setEditing(false);
   };
 
@@ -186,7 +188,7 @@ const EditableTenantName = ({ name, onSave }) => {
 
   if (editing) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flex: 1, minWidth: 0, width: '100%' }}>
         <input
           type="text"
           value={draft}
@@ -196,27 +198,33 @@ const EditableTenantName = ({ name, onSave }) => {
           style={{
             background: 'rgba(255,255,255,0.08)',
             border: '1.5px solid #f97316',
-            borderRadius: '10px',
+            borderRadius: '8px',
             color: 'white',
-            padding: '5px 10px',
-            fontSize: '15px',
+            padding: '4px 8px',
+            fontSize: '13px',
             fontWeight: 700,
             flex: 1,
             minWidth: 0,
+            width: '100%',
             outline: 'none',
+            boxSizing: 'border-box'
           }}
         />
         <button
+          type="button"
           onClick={handleSave}
+          title="Lưu"
           style={{ background: '#22c55e', border: 'none', borderRadius: '6px', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         >
-          <Check size={14} color="white" strokeWidth={3} />
+          <Check size={13} color="white" strokeWidth={3} />
         </button>
         <button
+          type="button"
           onClick={() => { setDraft(name); setEditing(false); }}
-          style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          title="Hủy"
+          style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '6px', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         >
-          <X size={14} color="#94a3b8" />
+          <X size={13} color="#94a3b8" />
         </button>
       </div>
     );
@@ -224,11 +232,26 @@ const EditableTenantName = ({ name, onSave }) => {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-      <h3 style={{ fontSize: '17px', fontWeight: 700, color: 'white', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <h3 
+        style={{ 
+          fontSize: '15px', 
+          fontWeight: 700, 
+          color: 'white', 
+          margin: 0, 
+          overflow: 'hidden', 
+          textOverflow: 'ellipsis', 
+          whiteSpace: 'nowrap',
+          flex: 1,
+          minWidth: 0
+        }}
+        title={name}
+      >
         {name || '---'}
       </h3>
       <button
+        type="button"
         onClick={() => { setDraft(name); setEditing(true); }}
+        title="Chỉnh sửa tên"
         style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
       >
         <Edit3 size={12} color="#f97316" strokeWidth={2.5} />
@@ -305,13 +328,16 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenan
     return rA - rB;
   });
 
+  const totalGuests = tenants.reduce((sum, t) => sum + guestCountOf(t), 0);
+  const displayGuests = displayTenants.reduce((sum, t) => sum + guestCountOf(t), 0);
+
   return (
     <div className="animate-slide-up pb-20">
       <header className="mb-6 flex-between items-center">
         <div>
           <h1 className="text-3xl font-black text-gradient">Khách thuê</h1>
           <p className="text-muted text-[11px] font-bold uppercase tracking-wider mt-1">
-            {s ? `Kết quả: ${displayTenants.length}` : `${tenants.length} người đang cư trú`}
+            {s ? `Kết quả: ${displayGuests} người đang cư trú` : `${totalGuests} người đang cư trú`}
           </p>
         </div>
         <button
@@ -338,33 +364,35 @@ const KaitoTenants = ({ tenants = [], onAddTenant, onRemoveTenant, onUpdateTenan
 
       <div className="space-y-4">
         {displayTenants.map((tenant, idx) => {
-          const uniqueKey = `tenant_${tenant.id || 'no_id'}_${tenant.room}_${idx}_${Math.random().toString(36).substr(2, 9)}`;
+          const uniqueKey = `tenant_${tenant.id || tenant.room || idx}`;
 
           return (
-            <div key={uniqueKey} className="glass-card !mb-0 relative group !pb-0 overflow-hidden flex flex-col">
+            <div key={uniqueKey} className="glass-card !mb-0 relative group !pb-0 overflow-hidden flex flex-col !p-4">
               <div className="p-0"> {/* Outer padding handled by glass-card */}
-                <div className="tenant-header mb-5 relative z-10">
+                <div className="tenant-header mb-4 relative z-10" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%' }}>
                   <div
                     className="tenant-avatar shrink-0 border border-white/5 flex items-center justify-center bg-white/5"
                     style={{
-                      width: '48px', height: '48px',
-                      minWidth: '48px', minHeight: '48px',
-                      maxWidth: '48px', maxHeight: '48px',
-                      borderRadius: '16px'
+                      width: '44px', height: '44px',
+                      minWidth: '44px', minHeight: '44px',
+                      maxWidth: '44px', maxHeight: '44px',
+                      borderRadius: '14px'
                     }}
                   >
-                    <User size={24} className="text-white/60" />
+                    <User size={22} className="text-white/60" />
                   </div>
-                  <div className="flex-1 min-w-0 ml-3 max-w-full">
-                    <div className="flex justify-between items-start gap-3">
+                  <div style={{ flex: 1, minWidth: 0, width: '100%', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%', minWidth: 0 }}>
                       <EditableTenantName
                         name={tenant.name || ''}
                         onSave={(val) => handleUpdateField(tenant.id, 'name', val)}
                       />
-                      <div className="room-badge whitespace-nowrap shrink-0">PHÒNG {tenant.room || '---'}</div>
+                      <div className="room-badge whitespace-nowrap" style={{ flexShrink: 0 }}>
+                        PHÒNG {tenant.room || '---'}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-muted font-bold uppercase tracking-wider mt-1.5">
-                      <Users size={12} className="opacity-70 text-primary" />
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted font-bold uppercase tracking-wider mt-1">
+                      <Users size={12} className="opacity-70 text-primary shrink-0" />
                       <span className="truncate">{tenant.guestCount ? `${tenant.guestCount} khách thuê` : '1 khách thuê'}</span>
                     </div>
                   </div>

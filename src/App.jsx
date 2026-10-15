@@ -114,7 +114,7 @@ const AppContent = () => {
   useEffect(() => {
     const unsubTenants = onSnapshot(collection(db, 'tenants'), (snapshot) => {
       const tenantsData = [];
-      snapshot.forEach(doc => tenantsData.push({ id: doc.id, ...doc.data() }));
+      snapshot.forEach(doc => tenantsData.push({ ...doc.data(), id: doc.id, docId: doc.id }));
       setTenants(tenantsData);
     });
 
@@ -151,7 +151,14 @@ const AppContent = () => {
   };
 
   const handleUpdateTenant = async (tenantId, updatedData) => {
-    try { await updateDoc(doc(db, 'tenants', tenantId.toString()), updatedData); } catch(err) { console.error('Error updating tenant:', err); }
+    try { 
+      if (!tenantId) return;
+      const tid = String(tenantId);
+      await setDoc(doc(db, 'tenants', tid), updatedData, { merge: true }); 
+      setTenants(prev => prev.map(t => (String(t.id) === tid || String(t.docId) === tid ? { ...t, ...updatedData } : t)));
+    } catch(err) { 
+      console.error('Error updating tenant:', err); 
+    }
   };
 
   const handleAddBill = async (bill) => {

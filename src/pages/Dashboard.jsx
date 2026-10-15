@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, User, MapPin, Clock, Headset, UserCircle, Building2, Calendar, ArrowRight, ArrowLeft, Lock } from 'lucide-react';
+import { Home, User, MapPin, Clock, Headset, UserCircle, Building2, Calendar, ArrowRight, ArrowLeft, Lock, Wind } from 'lucide-react';
 import { BRANCHES } from './Landing';
 
 const Dashboard = ({ tenants = [], bills = [], supportRequests = [], currentBranch = 'bnb1', onSwitchBranch, onBackToLanding }) => {
@@ -58,6 +58,12 @@ const Dashboard = ({ tenants = [], bills = [], supportRequests = [], currentBran
   const occupiedRoomsCount = useMemo(() => {
     if (!isActive) return 0;
     return new Set(tenants.map(t => t.room)).size;
+  }, [tenants, isActive]);
+
+  // Aircon Rooms Data (rooms where tenant has aircon checked as Yes / true)
+  const airconRoomsCount = useMemo(() => {
+    if (!isActive) return 0;
+    return new Set(tenants.filter(t => !!t.hasAircon).map(t => t.room)).size;
   }, [tenants, isActive]);
 
   // Revenue Status Data
@@ -225,12 +231,17 @@ const Dashboard = ({ tenants = [], bills = [], supportRequests = [], currentBran
           <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">
             Sơ đồ phòng ({TOTAL_ROOMS} phòng {!isActive ? 'dự kiến' : ''})
           </h3>
-          <div className="flex gap-6 mb-6">
+          <div className="flex gap-6 mb-2.5">
             <h3 className="text-xs font-bold uppercase tracking-widest text-success">
               Đang thuê ({occupiedRoomsCount})
             </h3>
             <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
               {!isActive ? `Chưa bàn giao (${TOTAL_ROOMS})` : `Trống (${TOTAL_ROOMS - occupiedRoomsCount})`}
+            </h3>
+          </div>
+          <div className="mb-6">
+            <h3 className="text-xs font-bold uppercase tracking-widest" style={{ color: '#38bdf8' }}>
+              Phòng điều hòa ({airconRoomsCount})
             </h3>
           </div>
           <div className="space-y-8">
@@ -239,8 +250,10 @@ const Dashboard = ({ tenants = [], bills = [], supportRequests = [], currentBran
                 <p className="glass-label text-[10px] uppercase mb-4">{floor.label}</p>
                 <div className="room-grid">
                   {floor.rooms.map(roomNum => {
-                    const tenant = isActive ? tenants.find(t => t.room === roomNum) : null;
-                    const isOccupied = !!tenant;
+                    const roomTenants = isActive ? tenants.filter(t => t.room === roomNum) : [];
+                    const isOccupied = roomTenants.length > 0;
+                    const hasAircon = roomTenants.some(t => !!t.hasAircon);
+
                     return (
                       <button
                         key={roomNum}
@@ -249,6 +262,14 @@ const Dashboard = ({ tenants = [], bills = [], supportRequests = [], currentBran
                         className={`room-btn ${isOccupied ? 'active' : ''}`}
                         style={!isActive ? { opacity: 0.35, cursor: 'not-allowed' } : {}}
                       >
+                        {hasAircon && (
+                          <div 
+                            className="room-aircon-badge"
+                            title="Có điều hòa"
+                          >
+                            <Wind size={9.5} strokeWidth={2.4} />
+                          </div>
+                        )}
                         <span className="room-label">{roomNum}</span>
                         {isOccupied ? <User size={10} /> : <Home size={10} opacity={0.3} />}
                       </button>
